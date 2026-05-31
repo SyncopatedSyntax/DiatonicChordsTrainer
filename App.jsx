@@ -107,7 +107,7 @@ const SHAPE_MINOR_L7 = {
   rootStrIdx: 1, // A-string (idx 1)
   upperStrIdx: 0, // low-E (idx 0)
   rootStrLabel: 'str5 (A)',
-  desc: 'Root on A-string (str5). Red group: 1m, 4m, 5m (minor chords). Teal group: b3, b6, b7 (major chords).',
+  desc: 'Root on A-string (str5). Teal group: 1m, 4m, 5m (minor chords). Red group: b3, b6, b7 (major chords).',
   dots: [
     { d:1, si:0, fo:-5 }, // 2°   str6, R-5  (d=1 → MIN_LABELS[1]='2°') ✓
     { d:2, si:0, fo:-4 }, // b3   str6, R-4
@@ -117,12 +117,12 @@ const SHAPE_MINOR_L7 = {
     { d:6, si:1, fo:-2 }, // b7   str5, R-2  (d=6 → MIN_LABELS[6]='b7') ✓
     { d:0, si:1, fo: 0 }, // 1m   str5, R+0  ← ROOT
   ],
-  redGroup:  new Set([0,3,4]),   // 1m, 4m, 5m  (minor chords → red)
-  tealGroup: new Set([2,5,6]),   // b3, b6, b7  (major chords → teal)
-  // Red path: 1m(str5,0) down to 5m(str6,0) left to 4m(str6,-2) — backwards-7 shape
-  redPath:  [{si:1,fo:0},{si:0,fo:0},{si:0,fo:-2}],
-  // Teal path: b3(str6,-4) up to b6(str5,-4) right to b7(str5,-2) — L shape
-  tealPath: [{si:0,fo:-4},{si:1,fo:-4},{si:1,fo:-2}],
+  redGroup:  new Set([2,5,6]),   // b3, b6, b7  (major chords → red)
+  tealGroup: new Set([0,3,4]),   // 1m, 4m, 5m  (minor chords → teal)
+  // Red path: b3(str6,-4) up to b6(str5,-4) right to b7(str5,-2) — L shape
+  redPath:  [{si:0,fo:-4},{si:1,fo:-4},{si:1,fo:-2}],
+  // Teal path: 1m(str5,0) down to 5m(str6,0) left to 4m(str6,-2)
+  tealPath: [{si:1,fo:0},{si:0,fo:0},{si:0,fo:-2}],
 };
 
 // MINOR LL — root on str6 (idx=0, low-E)
@@ -137,7 +137,7 @@ const SHAPE_MINOR_LL = {
   rootStrIdx: 0,
   upperStrIdx: 1,
   rootStrLabel: 'str6 (low-E)',
-  desc: 'Root on low-E string. Two L shapes: 1m→4m→5m and b3→b6→b7, each forming an upward L.',
+  desc: 'Root on low-E string. Teal L: 1m→4m→5m (minor chords). Red L: b3→b6→b7 (major chords).',
   dots: [
     { d:0, si:0, fo: 0 }, // 1m   str6, R+0  ← ROOT
     { d:1, si:0, fo: 2 }, // 2°   str6, R+2  (d=1 → MIN_LABELS[1]='2°') ✓
@@ -147,12 +147,12 @@ const SHAPE_MINOR_LL = {
     { d:5, si:1, fo: 3 }, // b6   str5, R+3
     { d:6, si:1, fo: 5 }, // b7   str5, R+5  (d=6 → MIN_LABELS[6]='b7') ✓
   ],
-  redGroup:  new Set([0,3,4]),   // 1m, 4m, 5m  (minor chords → red)
-  tealGroup: new Set([2,5,6]),   // b3, b6, b7  (major chords → teal)
-  // Red L: 1m(str6,0) up to 4m(str5,0) right to 5m(str5,+2)
-  redPath:  [{si:0,fo:0},{si:1,fo:0},{si:1,fo:2}],
-  // Teal L: b3(str6,+3) up to b6(str5,+3) right to b7(str5,+5)
-  tealPath: [{si:0,fo:3},{si:1,fo:3},{si:1,fo:5}],
+  redGroup:  new Set([2,5,6]),   // b3, b6, b7  (major chords → red)
+  tealGroup: new Set([0,3,4]),   // 1m, 4m, 5m  (minor chords → teal)
+  // Red L: b3(str6,+3) up to b6(str5,+3) right to b7(str5,+5)
+  redPath:  [{si:0,fo:3},{si:1,fo:3},{si:1,fo:5}],
+  // Teal L: 1m(str6,0) up to 4m(str5,0) right to 5m(str5,+2)
+  tealPath: [{si:0,fo:0},{si:1,fo:0},{si:1,fo:2}],
 };
 
 const ALL_SHAPES = [SHAPE_MAJOR_L7, SHAPE_MAJOR_LL, SHAPE_MINOR_L7, SHAPE_MINOR_LL];
@@ -200,21 +200,34 @@ function chordName(keyIdx, degIdx, isMinor) {
 }
 
 // ─── PULSE ANIMATION ──────────────────────────────────────────────────────────
-// Inject keyframe CSS once so SVG animateTransform + CSS both work
+// Use transform-based animation (scale + opacity) — works reliably on iOS Safari.
+// SVG `r` attribute CSS animation is not supported in WebKit/mobile browsers.
 if (typeof document !== 'undefined' && !document.getElementById('ct-pulse-style')) {
   const style = document.createElement('style');
   style.id = 'ct-pulse-style';
   style.textContent = `
-    @keyframes ctPulse {
-      0%   { r: 13; opacity: 0.7; }
-      60%  { r: 20; opacity: 0.0; }
-      100% { r: 20; opacity: 0.0; }
+    @keyframes ctPulse1 {
+      0%   { transform: scale(1);   opacity: 0.85; }
+      100% { transform: scale(2.4); opacity: 0; }
     }
-    .ct-pulse-ring { animation: ctPulse 1.6s ease-out infinite; }
+    @keyframes ctPulse2 {
+      0%   { transform: scale(1);   opacity: 0.6; }
+      100% { transform: scale(1.8); opacity: 0; }
+    }
+    .ct-pulse-ring-1 {
+      animation: ctPulse1 1.4s ease-out infinite;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+    .ct-pulse-ring-2 {
+      animation: ctPulse2 1.4s ease-out 0.4s infinite;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
   `;
   document.head.appendChild(style);
 }
-function Fretboard({ shape, rootFret, keyIdx, highlightDeg, onDotClick, quizMode, revealAll, size = 1 }) {
+function Fretboard({ shape, rootFret, keyIdx, highlightDeg, onDotClick, quizMode, revealAll, hardMode = false, size = 1 }) {
   const isMinor = shape.isMinor;
 
   // Fret window: show enough context around the shape
@@ -309,8 +322,8 @@ function Fretboard({ shape, rootFret, keyIdx, highlightDeg, onDotClick, quizMode
           );
         })}
 
-        {/* Shape connector lines — thick solid, always visible */}
-        {(() => {
+        {/* Shape connector lines — hidden in hard mode until revealed */}
+        {(!quizMode || revealAll || !hardMode) && (() => {
           const lines = [];
           const drawPath = (path, color) => {
             for (let i = 0; i < path.length - 1; i++) {
@@ -352,6 +365,10 @@ function Fretboard({ shape, rootFret, keyIdx, highlightDeg, onDotClick, quizMode
           const isHl = highlightDeg === dot.d;
           const color = getDotColor(dot.d, shape);
 
+          // Hard mode in quiz: only show root dot and target dot before reveal
+          const isHardHidden = hardMode && quizMode && !revealAll && !isRoot && !isHl;
+          if (isHardHidden) return null;
+
           // Quiz mode logic:
           // - target dot (isHl): solid filled, NO label
           // - other dots: hollow circle with bright stroke, NO label
@@ -368,18 +385,29 @@ function Fretboard({ shape, rootFret, keyIdx, highlightDeg, onDotClick, quizMode
           const label = degLabel(dot.d, isMinor);
           const fontSize = label.length > 2 ? 7 * size : 8 * size;
 
+          // Show pulse on root when: solid in learn/reveal, OR hollow during quiz question
+          const showPulse = isRoot && (isSolid || (quizMode && !revealAll));
+
           return (
             <g key={i}
               onClick={() => onDotClick && onDotClick(dot.d)}
               style={{ cursor: onDotClick ? 'pointer' : 'default' }}>
-              {/* Pulsing ring for root dot — shown in both learn (solid) and quiz (hollow) */}
-              {isRoot && (isSolid || (quizMode && !revealAll)) && (
-                <circle
-                  className="ct-pulse-ring"
-                  cx={cx} cy={cy} r={DR}
-                  fill="none"
-                  stroke={color}
-                  strokeWidth={2} />
+              {/* Dual pulsing rings for root — transform-based for iOS Safari */}
+              {showPulse && (
+                <>
+                  <circle
+                    className="ct-pulse-ring-1"
+                    cx={cx} cy={cy} r={DR}
+                    fill="none"
+                    stroke={color}
+                    strokeWidth={2.5} />
+                  <circle
+                    className="ct-pulse-ring-2"
+                    cx={cx} cy={cy} r={DR}
+                    fill="none"
+                    stroke={color}
+                    strokeWidth={1.5} />
+                </>
               )}
               {/* Highlight glow when tapped in learn mode */}
               {isHl && !quizMode && (
@@ -465,6 +493,7 @@ export default function App() {
   // Two-part answer state
   const [qPickedNum, setQPickedNum] = useState(null);   // 1-7 (scale degree number)
   const [qPickedType, setQPickedType] = useState(null); // 'maj' | 'min' | 'dim'
+  const [qHardMode, setQHardMode] = useState(false);    // hard mode: only root + target shown
   const timerRef = useRef(null);
 
   const shape = SHAPES_BY_ID[shapeId];
@@ -645,18 +674,18 @@ export default function App() {
       {/* Legend — derived from current shape */}
       <div style={{ display: 'flex', gap: 14, padding: '0 14px 10px', flexWrap: 'wrap' }}>
         {(() => {
-          // Build legend labels from the shape's actual dot groups, sorted by degree index
+          // Exclude root (d=0) from both groups — handle it separately with pulse indicator
           const redDots = shape.dots
             .filter(dot => dot.d !== 0 && shape.redGroup.has(dot.d))
             .sort((a, b) => a.d - b.d);
           const tealDots = shape.dots
-            .filter(dot => shape.tealGroup.has(dot.d))
+            .filter(dot => dot.d !== 0 && shape.tealGroup.has(dot.d))
             .sort((a, b) => a.d - b.d);
 
-          const redLabels = redDots.map(dot => degLabel(dot.d, isMinor));
+          const redLabels  = redDots.map(dot => degLabel(dot.d, isMinor));
           const tealLabels = tealDots.map(dot => degLabel(dot.d, isMinor));
 
-          // Quality of each group — use majority vote (most common quality)
+          // Quality of each group — majority vote on non-root dots
           const majorityQual = (dots) => {
             const counts = {};
             dots.forEach(dot => {
@@ -665,18 +694,30 @@ export default function App() {
             });
             return Object.entries(counts).sort((a,b) => b[1]-a[1])[0]?.[0] || 'maj';
           };
-          const redQual = majorityQual(redDots);
+          const redQual  = majorityQual(redDots);
           const tealQual = majorityQual(tealDots);
-          const redQualLabel = redQual === 'maj' ? 'Major' : 'Minor';
-          const tealQualLabel = tealQual === 'maj' ? 'Major' : tealQual === 'min' ? 'Minor' : 'Dim';
+          const redQualLabel  = redQual  === 'maj' ? 'Major' : 'Minor';
+          const tealQualLabel = tealQual === 'maj' ? 'Major' : 'Minor';
 
           // Dim dot
           const dimDot = shape.dots.find(dot => isMinor ? dot.d === 1 : dot.d === 6);
           const dimLabel = dimDot ? degLabel(dimDot.d, isMinor) : null;
 
+          // Root label and which color it belongs to
+          const rootLabel = degLabel(0, isMinor);  // '1' or '1m'
+          const rootInRed = shape.redGroup.has(0);
+          const rootColor = rootInRed ? COLOR_MAJ : COLOR_MIN;
+
+          const redFull  = rootInRed
+            ? `${redQualLabel} (${[rootLabel + ' ◎', ...redLabels].join(', ')})`
+            : `${redQualLabel} (${redLabels.join(', ')})`;
+          const tealFull = !rootInRed
+            ? `${tealQualLabel} (${[rootLabel + ' ◎', ...tealLabels].join(', ')})`
+            : `${tealQualLabel} (${tealLabels.join(', ')})`;
+
           const items = [
-            [COLOR_MAJ, `${redQualLabel} (${['root*', ...redLabels].join(', ')})`],
-            [COLOR_MIN, `${tealQualLabel} (${tealLabels.join(', ')})`],
+            [COLOR_MAJ, redFull],
+            [COLOR_MIN, tealFull],
             dimLabel ? [COLOR_DIM, `Dim (${dimLabel})`] : null,
           ].filter(Boolean);
 
@@ -688,7 +729,7 @@ export default function App() {
           ));
         })()}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: TEXT2 }}>
-          <span style={{ fontSize: 11 }}>◎</span> * root pulses
+          <span>◎</span> = root (pulses)
         </div>
       </div>
 
@@ -806,6 +847,40 @@ export default function App() {
           </div>
         ))}
 
+        {/* Difficulty */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 10, color: TEXT2, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 7 }}>
+            Difficulty
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button onClick={() => setQHardMode(false)} style={{
+              flex: 1, padding: '9px 8px', borderRadius: 9, cursor: 'pointer',
+              border: `1px solid ${!qHardMode ? GOLD : BORDER}`,
+              background: !qHardMode ? GOLD + '22' : BG2,
+              color: !qHardMode ? GOLD : TEXT1,
+              fontSize: 11, fontWeight: 700,
+              fontFamily: "'Segoe UI',system-ui,sans-serif",
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}>
+              <span>💡</span> Normal
+            </button>
+            <button onClick={() => setQHardMode(true)} style={{
+              flex: 1, padding: '9px 8px', borderRadius: 9, cursor: 'pointer',
+              border: `1px solid ${qHardMode ? RED : BORDER}`,
+              background: qHardMode ? RED + '22' : BG2,
+              color: qHardMode ? RED : TEXT1,
+              fontSize: 11, fontWeight: 700,
+              fontFamily: "'Segoe UI',system-ui,sans-serif",
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}>
+              <span>🔥</span> Hard
+            </button>
+          </div>
+          <div style={{ fontSize: 9, color: TEXT2, marginTop: 5 }}>
+            {qHardMode ? '🔥 Hard: only root (pulsing) + target dot shown' : '💡 Normal: all dots and shape lines visible'}
+          </div>
+        </div>
+
         <button onClick={startQuiz} style={{
           display: 'block', width: '100%', padding: 14,
           background: GOLD, color: '#111', border: 'none', borderRadius: 12,
@@ -879,7 +954,16 @@ export default function App() {
       <div style={{ padding: '12px 14px', maxWidth: 440, margin: '0 auto' }}>
         {/* Score bar */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-          <span style={{ fontSize: 11, color: TEXT2 }}>Q{qIdx + 1}/{qNumQ}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 11, color: TEXT2 }}>Q{qIdx + 1}/{qNumQ}</span>
+            {qHardMode && (
+              <span style={{
+                fontSize: 9, fontWeight: 700, color: RED,
+                background: RED + '18', border: `1px solid ${RED}44`,
+                borderRadius: 5, padding: '1px 5px',
+              }}>🔥 HARD</span>
+            )}
+          </div>
           <span style={{ fontSize: 14, fontWeight: 700, color: GOLD }}>{qScore} pts</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: timerColor }}>{Math.ceil(qTimeLeft)}s</span>
@@ -941,6 +1025,7 @@ export default function App() {
             onDotClick={null}
             quizMode={true}
             revealAll={answered}
+            hardMode={qHardMode}
           />
         </div>
 
