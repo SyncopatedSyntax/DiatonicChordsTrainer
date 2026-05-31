@@ -348,10 +348,11 @@ function Fretboard({ shape, rootFret, keyIdx, highlightDeg, onDotClick, quizMode
 
           // Fill: solid when not quiz, or when revealed, or when this is the target
           const isSolid = !quizMode || revealAll || isTarget;
-          const strokeW = isSolid ? 0 : 2;
           const fillColor = isSolid ? color : 'transparent';
-          // Non-target hollow dots in quiz: bright stroke, not dimmed
-          const strokeColor = color;
+          // Root dot in learn mode: yellow fill + red outline to show it belongs to major group
+          const strokeColor = (!quizMode && isRoot) ? COLOR_MAJ : color;
+          const strokeW = (!quizMode && isRoot) ? 2.5 : (isSolid ? 0 : 2);
+
           const dotOpacity = 1;
 
           const label = degLabel(dot.d, isMinor);
