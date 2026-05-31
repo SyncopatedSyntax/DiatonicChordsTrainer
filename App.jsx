@@ -611,19 +611,52 @@ export default function App() {
           quizMode={false} revealAll={true} />
       </div>
 
-      {/* Legend */}
+      {/* Legend — derived from current shape */}
       <div style={{ display: 'flex', gap: 14, padding: '0 14px 10px', flexWrap: 'wrap' }}>
-        {[
-          [COLOR_MAJ, 'Major (I/IV/V)'],
-          [COLOR_MIN, 'Minor (ii/iii/vi)'],
-          [COLOR_DIM, 'Dim (vii°)'],
-          [GOLD, 'Root (1)'],
-        ].map(([c, label]) => (
-          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: TEXT1 }}>
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: c, flexShrink: 0 }} />
-            {label}
-          </div>
-        ))}
+        {(() => {
+          // Build legend labels from the shape's actual dot groups, sorted by degree index
+          const redDots = shape.dots
+            .filter(dot => dot.d !== 0 && shape.redGroup.has(dot.d))
+            .sort((a, b) => a.d - b.d);
+          const tealDots = shape.dots
+            .filter(dot => shape.tealGroup.has(dot.d))
+            .sort((a, b) => a.d - b.d);
+
+          const redLabels = redDots.map(dot => degLabel(dot.d, isMinor));
+          const tealLabels = tealDots.map(dot => degLabel(dot.d, isMinor));
+
+          // Quality of each group — use majority vote (most common quality)
+          const majorityQual = (dots) => {
+            const counts = {};
+            dots.forEach(dot => {
+              const q = degQuality(dot.d, isMinor);
+              counts[q] = (counts[q] || 0) + 1;
+            });
+            return Object.entries(counts).sort((a,b) => b[1]-a[1])[0]?.[0] || 'maj';
+          };
+          const redQual = majorityQual(redDots);
+          const tealQual = majorityQual(tealDots);
+          const redQualLabel = redQual === 'maj' ? 'Major' : 'Minor';
+          const tealQualLabel = tealQual === 'maj' ? 'Major' : tealQual === 'min' ? 'Minor' : 'Dim';
+
+          // Dim dot
+          const dimDot = shape.dots.find(dot => isMinor ? dot.d === 1 : dot.d === 6);
+          const dimLabel = dimDot ? degLabel(dimDot.d, isMinor) : null;
+
+          const items = [
+            [COLOR_MAJ, `${redQualLabel} (${['root', ...redLabels].join(', ')})`],
+            [COLOR_MIN, `${tealQualLabel} (${tealLabels.join(', ')})`],
+            dimLabel ? [COLOR_DIM, `Dim (${dimLabel})`] : null,
+            [GOLD, `Root (${degLabel(0, isMinor)})`],
+          ].filter(Boolean);
+
+          return items.map(([c, label]) => (
+            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: TEXT1 }}>
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: c, flexShrink: 0 }} />
+              {label}
+            </div>
+          ));
+        })()}
       </div>
 
       {/* Chord grid */}
