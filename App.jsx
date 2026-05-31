@@ -168,8 +168,7 @@ const DIATONIC_ST  = [0,2,4,5,7,9,11]; // semitones from root for each degree
 function degLabel(d, isMinor) { return isMinor ? MIN_LABELS[d] : MAJ_LABELS[d]; }
 function degQuality(d, isMinor) { return isMinor ? MIN_QUALITY[d] : MAJ_QUALITY[d]; }
 
-function getDotColor(d, shape, isRoot) {
-  if (isRoot) return GOLD;
+function getDotColor(d, shape) {
   // Dim chord: in major it's d=6 (7°); in minor it's d=1 (2°)
   const isDim = shape.isMinor ? (d === 1) : (d === 6);
   if (isDim) return COLOR_DIM;
@@ -200,7 +199,21 @@ function chordName(keyIdx, degIdx, isMinor) {
   return note;
 }
 
-// ─── FRETBOARD SVG ─────────────────────────────────────────────────────────────
+// ─── PULSE ANIMATION ──────────────────────────────────────────────────────────
+// Inject keyframe CSS once so SVG animateTransform + CSS both work
+if (typeof document !== 'undefined' && !document.getElementById('ct-pulse-style')) {
+  const style = document.createElement('style');
+  style.id = 'ct-pulse-style';
+  style.textContent = `
+    @keyframes ctPulse {
+      0%   { r: 13; opacity: 0.7; }
+      60%  { r: 20; opacity: 0.0; }
+      100% { r: 20; opacity: 0.0; }
+    }
+    .ct-pulse-ring { animation: ctPulse 1.6s ease-out infinite; }
+  `;
+  document.head.appendChild(style);
+}
 function Fretboard({ shape, rootFret, keyIdx, highlightDeg, onDotClick, quizMode, revealAll, size = 1 }) {
   const isMinor = shape.isMinor;
 
@@ -337,7 +350,7 @@ function Fretboard({ shape, rootFret, keyIdx, highlightDeg, onDotClick, quizMode
           const cy = sy(dot.si);
           const isRoot = dot.d === 0;
           const isHl = highlightDeg === dot.d;
-          const color = getDotColor(dot.d, shape, isRoot);
+          const color = getDotColor(dot.d, shape);
 
           // Quiz mode logic:
           // - target dot (isHl): solid filled, NO label
@@ -349,11 +362,8 @@ function Fretboard({ shape, rootFret, keyIdx, highlightDeg, onDotClick, quizMode
           // Fill: solid when not quiz, or when revealed, or when this is the target
           const isSolid = !quizMode || revealAll || isTarget;
           const fillColor = isSolid ? color : 'transparent';
-          // Root dot in learn mode: yellow fill + red outline to show it belongs to major group
-          const strokeColor = (!quizMode && isRoot) ? COLOR_MAJ : color;
-          const strokeW = (!quizMode && isRoot) ? 2.5 : (isSolid ? 0 : 2);
-
-          const dotOpacity = 1;
+          const strokeColor = color;
+          const strokeW = isSolid ? 0 : 2;
 
           const label = degLabel(dot.d, isMinor);
           const fontSize = label.length > 2 ? 7 * size : 8 * size;
@@ -362,15 +372,24 @@ function Fretboard({ shape, rootFret, keyIdx, highlightDeg, onDotClick, quizMode
             <g key={i}
               onClick={() => onDotClick && onDotClick(dot.d)}
               style={{ cursor: onDotClick ? 'pointer' : 'default' }}>
-              {isHl && (
+              {/* Pulsing ring for root dot — shown in both learn (solid) and quiz (hollow) */}
+              {isRoot && (isSolid || (quizMode && !revealAll)) && (
+                <circle
+                  className="ct-pulse-ring"
+                  cx={cx} cy={cy} r={DR}
+                  fill="none"
+                  stroke={color}
+                  strokeWidth={2} />
+              )}
+              {/* Highlight glow when tapped in learn mode */}
+              {isHl && !quizMode && (
                 <circle cx={cx} cy={cy} r={DR + 6 * size}
                   fill={color} opacity={0.18} />
               )}
               <circle cx={cx} cy={cy} r={DR}
                 fill={fillColor}
                 stroke={strokeColor}
-                strokeWidth={strokeW}
-                opacity={dotOpacity} />
+                strokeWidth={strokeW} />
               {showLabel && (
                 <text x={cx} y={cy} textAnchor="middle"
                   dominantBaseline="central"
@@ -398,7 +417,7 @@ function ChordPill({ d, shape, keyIdx, rootFret, onClick, highlighted }) {
   const fret = dot ? rootFret + dot.fo : '?';
   const strLabel = dot ? (dot.si === 0 ? 'E' : 'A') : '';
   const isRoot = d === 0;
-  const color = getDotColor(d, shape, isRoot);
+  const color = getDotColor(d, shape);
   const ci = COLORS_CAT[quality] || TEXT2;
 
   return (
@@ -454,7 +473,11 @@ export default function App() {
 
   // ── Quiz logic ───────────────────────────────────────────────────────────────
   const makeQuestion = useCallback((sid, ki) => {
-    const s = SHAPES_BY_ID[sid];
+    // Mixed mode: pick a random shape each question
+    const resolvedSid = sid === 'mixed'
+      ? ALL_SHAPES[Math.floor(Math.random() * ALL_SHAPES.length)].id
+      : sid;
+    const s = SHAPES_BY_ID[resolvedSid];
     // Pick random degree (0-6, include all)
     const pool = [0,1,2,3,4,5,6];
     const degIdx = pool[Math.floor(Math.random() * pool.length)];
@@ -464,7 +487,15 @@ export default function App() {
     // correctNum: 1-based degree number (degIdx+1)
     const correctNum = degIdx + 1; // 1=root, 2=second, ... 7=seventh
     const correctType = degQuality(degIdx, s.isMinor); // 'maj'|'min'|'dim'
-    return { sid, ki, degIdx, dot, targetFret, correctNum, correctType, rf };
+    return { sid: resolvedSid, ki, degIdx, dot, targetFret, correctNum, correctType, rf };
+  }, []);
+
+  const quitQuiz = useCallback(() => {
+    clearInterval(timerRef.current);
+    setQPhase('setup');
+    setQAnswer(null);
+    setQPickedNum(null);
+    setQPickedType(null);
   }, []);
 
   const startQuiz = useCallback(() => {
@@ -644,10 +675,9 @@ export default function App() {
           const dimLabel = dimDot ? degLabel(dimDot.d, isMinor) : null;
 
           const items = [
-            [COLOR_MAJ, `${redQualLabel} (${['root', ...redLabels].join(', ')})`],
+            [COLOR_MAJ, `${redQualLabel} (${['root*', ...redLabels].join(', ')})`],
             [COLOR_MIN, `${tealQualLabel} (${tealLabels.join(', ')})`],
             dimLabel ? [COLOR_DIM, `Dim (${dimLabel})`] : null,
-            [GOLD, `Root (${degLabel(0, isMinor)})`],
           ].filter(Boolean);
 
           return items.map(([c, label]) => (
@@ -657,6 +687,9 @@ export default function App() {
             </div>
           ));
         })()}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: TEXT2 }}>
+          <span style={{ fontSize: 11 }}>◎</span> * root pulses
+        </div>
       </div>
 
       {/* Chord grid */}
@@ -671,7 +704,7 @@ export default function App() {
             const quality = degQuality(d, isMinor);
             const noteName = chordName(keyIdx, d, isMinor);
             const isRoot = d === 0;
-            const color = getDotColor(d, shape, isRoot);
+            const color = getDotColor(d, shape);
             const fret = rootFret + dot.fo;
             const strName = dot.si === 0 ? 'str6' : 'str5';
             const isHL = hlDeg === d;
@@ -685,7 +718,9 @@ export default function App() {
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
                   <span style={{ fontSize: 14, fontWeight: 900, color,
-                    fontFamily: "'Segoe UI',system-ui,sans-serif" }}>{label}</span>
+                    fontFamily: "'Segoe UI',system-ui,sans-serif" }}>
+                    {label}{isRoot ? ' ◎' : ''}
+                  </span>
                   <span style={{ fontSize: 9, color: TEXT2 }}>{strName} fr{fret}</span>
                 </div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: TEXT0 }}>{noteName}</div>
@@ -712,7 +747,11 @@ export default function App() {
 
         {[
           {
-            title: 'Shape', opts: ALL_SHAPES.map(s => ({ id: s.id, label: s.name })),
+            title: 'Shape',
+            opts: [
+              ...ALL_SHAPES.map(s => ({ id: s.id, label: s.name })),
+              { id: 'mixed', label: '⚡ Mixed' },
+            ],
             val: qShapeId, set: setQShapeId,
           },
           {
@@ -842,7 +881,18 @@ export default function App() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
           <span style={{ fontSize: 11, color: TEXT2 }}>Q{qIdx + 1}/{qNumQ}</span>
           <span style={{ fontSize: 14, fontWeight: 700, color: GOLD }}>{qScore} pts</span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: timerColor }}>{Math.ceil(qTimeLeft)}s</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: timerColor }}>{Math.ceil(qTimeLeft)}s</span>
+            <button onClick={quitQuiz} style={{
+              background: RED + '18',
+              border: `1px solid ${RED}66`,
+              color: RED, borderRadius: 7,
+              padding: '3px 9px', fontSize: 10,
+              fontWeight: 700, cursor: 'pointer',
+              fontFamily: "'Segoe UI',system-ui,sans-serif",
+              letterSpacing: 0.5,
+            }}>✕ Quit</button>
+          </div>
         </div>
 
         {/* Progress bar */}
@@ -871,7 +921,7 @@ export default function App() {
             {qs.name} · Key of {NOTE_NAMES[qQuestion.ki]}
           </div>
           <div style={{ fontSize: 15, fontWeight: 700, color: TEXT0 }}>
-            What is the highlighted dot?
+            What chord should have the solid dot as root?
           </div>
           <div style={{ fontSize: 11, color: TEXT2, marginTop: 2 }}>
             str{qQuestion.dot.si === 0 ? '6' : '5'} · fret {qQuestion.targetFret}
