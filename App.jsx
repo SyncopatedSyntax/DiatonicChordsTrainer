@@ -155,7 +155,41 @@ const SHAPE_MINOR_LL = {
   tealPath: [{si:0,fo:0},{si:1,fo:0},{si:1,fo:2}],
 };
 
-const ALL_SHAPES = [SHAPE_MAJOR_L7, SHAPE_MAJOR_LL, SHAPE_MINOR_L7, SHAPE_MINOR_LL];
+// JIMMY'S UPSIDE-DOWN T — root on str5 (idx=1, A-string), major key
+// str5(idx=1): 7°@R-1, 1@R, 2@R+2
+// str6(idx=0): 3@R-3, 4@R-2, 5@R+0, 6@R+2
+// Verified in key of A (root=str5 fret0=A):
+//   str5: 7°=fret-1(skip,open), 1=A✓, 2m=B✓(fret2)
+//   str6: 3m=fret-3→use fret9(C#)✓, 4=D(fret-2→fret10? or relative)
+// Shape: long horizontal bar on str6 (3→4→5→6), vertical stem up to 1 and 2 on str5
+// Looks like an upside-down T
+const SHAPE_JIMMY_T = {
+  id: 'jimmy_t',
+  name: "Jimmy's Upside-Down T",
+  shortName: 'T',
+  isMinor: false,
+  rootStrIdx: 1, // A-string (idx 1)
+  upperStrIdx: 0, // low-E (idx 0)
+  rootStrLabel: 'str5 (A)',
+  desc: "Root on A-string (str5). Long horizontal bar on str6: 3m–4–5–6m. Stem rises to 1 and 2m on str5. Forms an upside-down T shape.",
+  dots: [
+    { d:2, si:0, fo:-3 }, // 3m   str6, R-3
+    { d:3, si:0, fo:-2 }, // 4    str6, R-2
+    { d:4, si:0, fo: 0 }, // 5    str6, R+0  (same fret as root)
+    { d:5, si:0, fo: 2 }, // 6m   str6, R+2
+    { d:6, si:1, fo:-1 }, // 7°   str5, R-1
+    { d:0, si:1, fo: 0 }, // 1    str5, R    ← ROOT
+    { d:1, si:1, fo: 2 }, // 2m   str5, R+2
+  ],
+  redGroup:  new Set([0,3,4]),   // 1, 4, 5   (major chords → red)
+  tealGroup: new Set([1,2,5]),   // 2m, 3m, 6m (minor chords → teal)
+  // Red path: 4(str6,-2)→5(str6,0) horizontal, then 5(str6,0)→1(str5,0) vertical up
+  redPath:  [{si:0,fo:-2},{si:0,fo:0},{si:1,fo:0}],
+  // Teal path: 5(str6,0)→6m(str6,+2) horizontal only
+  tealPath: [{si:0,fo:0},{si:0,fo:2}],
+};
+
+const ALL_SHAPES = [SHAPE_MAJOR_L7, SHAPE_MAJOR_LL, SHAPE_MINOR_L7, SHAPE_MINOR_LL, SHAPE_JIMMY_T];
 const SHAPES_BY_ID = Object.fromEntries(ALL_SHAPES.map(s => [s.id, s]));
 
 // Degree labels
@@ -628,11 +662,13 @@ export default function App() {
       <div style={{ padding: '6px 14px 8px' }}>
         <div style={{ fontSize: 10, color: TEXT2, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>Shape</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-          {ALL_SHAPES.map(s => {
+          {ALL_SHAPES.map((s, idx) => {
             const active = shapeId === s.id;
             const c = s.isMinor ? TEAL : RED;
+            const isLastOdd = idx === ALL_SHAPES.length - 1 && ALL_SHAPES.length % 2 === 1;
             return (
               <button key={s.id} onClick={() => { setShapeId(s.id); setHlDeg(null); }} style={{
+                gridColumn: isLastOdd ? '1 / -1' : undefined,
                 padding: '10px 8px', borderRadius: 10,
                 border: `1px solid ${active ? c : BORDER}`,
                 background: active ? c + '18' : BG2,
@@ -1201,6 +1237,16 @@ export default function App() {
             'Major keys: 1=maj, 2m=min, 3m=min, 4=maj, 5=maj, 6m=min, 7°=dim',
             'Minor keys: 1m=min, 2°=dim, b3=maj, 4m=min, 5m=min, b6=maj, b7=maj',
             'Red dots are always major chords. Teal dots are always minor chords. This never changes regardless of key — only the fret positions move.',
+          ],
+        },
+        {
+          title: "Jimmy's Upside-Down T",
+          color: GOLD,
+          lines: [
+            'Root on A-string (str5). A unique major key shape combining a long horizontal bar on str6 with a short stem on str5.',
+            'Red group (major): 1 (root), 4, 5 — the T-stem. 4 and 5 run along str6 to the root fret, then 1 sits above on str5.',
+            'Teal group (minor): 2m, 3m, 6m — the T-bar. 3m and 4 extend left on str6, 6m extends right, and 2m hangs above the right end on str5.',
+            'The shape earns its name from the cross-bar on str6 (–3 to +2 frets) with the stem pointing upward to str5 — an upside-down T.',
           ],
         },
         {
