@@ -874,6 +874,7 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qPickedNum, qPickedType]);
 
+  const scrollRef = useRef(null);
   const timerPct = qTimeLeft / qTimeLimit * 100;
   const timerColor = timerPct > 60 ? TEAL : timerPct > 30 ? GOLD : RED;
 
@@ -1512,12 +1513,11 @@ export default function App() {
           ))}
         </div>
       ))}
+      <DebugPanel />
     </div>
   );
 
-  // ── Tabs ─────────────────────────────────────────────────────────────────────
-  const scrollRef = useRef(null);
-
+  // ── Return ────────────────────────────────────────────────────────────────────
   const TABS = [
     { id: 'learn', icon: '🎸', label: 'Learn' },
     { id: 'quiz',  icon: '🎯', label: 'Quiz'  },
