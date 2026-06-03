@@ -502,12 +502,251 @@ function ChordPill({ d, shape, keyIdx, rootFret, onClick, highlighted }) {
 
 const COLORS_CAT = { maj: COLOR_MAJ, min: COLOR_MIN, dim: COLOR_DIM };
 
+// ─── DEBUG TRIGGERS ────────────────────────────────────────────────────────────
+let _debugShowInstall = null;
+
+// ─── DEBUG PANEL ───────────────────────────────────────────────────────────────
+function DebugPanel() {
+  const [, forceUpdate] = useState(0);
+  const ls = k => { try { return localStorage.getItem(k) || '(unset)'; } catch(e) { return '(unset)'; } };
+  const rows = [
+    ['l7_launches',   ls('l7_launches')],
+    ['isIOS',         String(/iphone|ipad|ipod/i.test(navigator.userAgent))],
+    ['isStandalone',  String(window.matchMedia('(display-mode:standalone)').matches || window.navigator.standalone === true)],
+    ['window.scrollY',String(window.scrollY)],
+  ];
+  return (
+    <div style={{ background: '#0a0918', borderRadius: 10, border: `1px solid ${RED}55`, padding: '10px 12px', marginBottom: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <div style={{ fontSize: 10, color: RED, fontWeight: 700, letterSpacing: 1 }}>🐛 DEBUG</div>
+        <button onClick={() => forceUpdate(n => n + 1)} style={{
+          fontSize: 9, color: TEXT2, background: 'transparent',
+          border: `1px solid ${BORDER}`, borderRadius: 5, padding: '2px 8px', cursor: 'pointer',
+        }}>Refresh</button>
+      </div>
+      {rows.map(([k, v]) => (
+        <div key={k} style={{ display: 'flex', gap: 8, fontSize: 10, fontFamily: 'monospace', marginBottom: 3 }}>
+          <span style={{ color: TEXT2, minWidth: 140, flexShrink: 0 }}>{k}</span>
+          <span style={{ color: GOLD }}>{v}</span>
+        </div>
+      ))}
+      <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+        <button onClick={() => { try { localStorage.clear(); } catch(e) {} location.reload(); }}
+          style={{ fontSize: 9, color: RED, background: 'transparent', border: `1px solid ${RED}44`, borderRadius: 5, padding: '4px 10px', cursor: 'pointer', minHeight: 32, touchAction: 'manipulation' }}>
+          Clear all & reload
+        </button>
+        <button onClick={() => { try { localStorage.removeItem('l7_launches'); } catch(e) {} location.reload(); }}
+          style={{ fontSize: 9, color: '#74b9ff', background: 'transparent', border: '1px solid #74b9ff44', borderRadius: 5, padding: '4px 10px', cursor: 'pointer', minHeight: 32, touchAction: 'manipulation' }}>
+          Show install banner
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── INSTALL BANNER ────────────────────────────────────────────────────────────
+function BannerStack() {
+  const [showInstall, setShowInstall] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true;
+
+  // Increment launch counter unconditionally (before any early returns)
+  const [launches] = useState(() => {
+    try {
+      const n = parseInt(localStorage.getItem('l7_launches') || '0', 10) + 1;
+      localStorage.setItem('l7_launches', String(n));
+      return n;
+    } catch(e) { return 1; }
+  });
+
+  useEffect(() => {
+    if (isStandalone) return;
+    if (launches !== 1 && launches % 5 !== 0) return;
+    const isAndroidChrome = /android/i.test(navigator.userAgent) && /chrome/i.test(navigator.userAgent);
+    if (isIOS) {
+      const t = setTimeout(() => setShowInstall(true), 2500);
+      return () => clearTimeout(t);
+    }
+    if (isAndroidChrome) {
+      const handler = e => { e.preventDefault(); setDeferredPrompt(e); setShowInstall(true); };
+      window.addEventListener('beforeinstallprompt', handler);
+      return () => window.removeEventListener('beforeinstallprompt', handler);
+    }
+  }, []);
+
+  const tap = cb => e => { e.stopPropagation(); cb(); };
+
+  const dismissInstall = () => setTimeout(() => setShowInstall(false), 0);
+  const installAndroid = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    setDeferredPrompt(null);
+    dismissInstall();
+  };
+
+  if (!showInstall) return null;
+
+  const sheetStyle = {
+    position: 'fixed',
+    bottom: 'max(16px,env(safe-area-inset-bottom))',
+    left: 12, right: 12,
+    zIndex: 9999,
+    background: '#242235',
+    borderRadius: 18,
+    border: `1px solid ${BORDER}`,
+    boxShadow: '0 8px 40px #000000aa',
+    padding: '14px 14px 12px',
+  };
+  const btnClose = {
+    background: 'transparent', border: 'none', color: '#555', fontSize: 22,
+    padding: '0 4px', lineHeight: 1, flexShrink: 0, cursor: 'pointer',
+    touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent',
+    minWidth: 36, minHeight: 44,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  };
+
+  return (
+    <div style={sheetStyle}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: !isIOS ? 10 : 0 }}>
+        <div style={{ fontSize: 22, lineHeight: 1, flexShrink: 0 }}>🎸</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: TEXT0, marginBottom: 2 }}>
+            {isIOS ? 'Add to Home Screen for offline use' : 'Practice anytime — install L7/LL Trainer'}
+          </div>
+          <div style={{ fontSize: 11, color: TEXT2 }}>
+            {isIOS
+              ? <><span style={{ color: GOLD, fontWeight: 700 }}>Share ⎙</span> → <span style={{ color: GOLD, fontWeight: 700 }}>Add to Home Screen</span></>
+              : 'Full-screen, works offline, opens instantly'}
+          </div>
+        </div>
+        <button style={btnClose} onPointerDown={tap(dismissInstall)} onClick={tap(dismissInstall)}>×</button>
+      </div>
+      {!isIOS && (
+        <button onPointerDown={tap(installAndroid)} onClick={tap(installAndroid)}
+          style={{
+            display: 'block', width: '100%', background: GOLD, color: '#111',
+            border: 'none', padding: 10, borderRadius: 9, fontSize: 13,
+            fontWeight: 800, cursor: 'pointer', minHeight: 44,
+            touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent',
+          }}>
+          Install
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ─── MAIN APP ──────────────────────────────────────────────────────────────────
 export default function App() {
   const [tab, setTab] = useState('learn');
   const [shapeId, setShapeId] = useState('major_l7');
   const [keyIdx, setKeyIdx] = useState(9); // A
   const [hlDeg, setHlDeg] = useState(null);
+  const [showData, setShowData] = useState(false);
+  const [importMsg, setImportMsg] = useState('');
+
+  // v3-style global style + PWA meta + canvas icon + scroll lock
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      *{-webkit-tap-highlight-color:transparent;box-sizing:border-box;}
+      html,body{height:100%;overflow:hidden;background:#0f0e17;}
+      button,a,label,[role=button]{touch-action:manipulation;-webkit-user-select:none;user-select:none;}
+      input,textarea,select{font-size:16px!important;}
+      svg{user-select:none;-webkit-user-select:none;pointer-events:none;}
+      svg [onclick],svg [style*='cursor']{pointer-events:auto;}
+      :root{--sat:env(safe-area-inset-top);--sab:env(safe-area-inset-bottom);}
+    `;
+    (() => {
+      let vp = document.querySelector('meta[name="viewport"]');
+      if (!vp) { vp = document.createElement('meta'); vp.name = 'viewport'; document.head.prepend(vp); }
+      vp.content = 'width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover';
+    })();
+
+    // Generate canvas icon
+    function makeIcon(size) {
+      const c = document.createElement('canvas'); c.width = c.height = size;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#0f0e17'; ctx.fillRect(0, 0, size, size);
+      // Draw fretboard-style graphic: two horizontal strings with dots
+      const mid = size * 0.5;
+      const str1y = size * 0.38, str2y = size * 0.62;
+      const pad = size * 0.12;
+      // Strings
+      ctx.strokeStyle = '#3a3858'; ctx.lineWidth = size * 0.025; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(pad, str1y); ctx.lineTo(size - pad, str1y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(pad, str2y); ctx.lineTo(size - pad, str2y); ctx.stroke();
+      // Dots: red on str1, teal on str2
+      const dotR = size * 0.07;
+      const positions = [
+        { x: size * 0.35, y: str1y, color: '#ff6b6b' }, // 1 root
+        { x: size * 0.55, y: str1y, color: '#ff6b6b' }, // 2
+        { x: size * 0.75, y: str1y, color: '#4ecdc4' }, // 3
+        { x: size * 0.35, y: str2y, color: '#ff6b6b' }, // 4
+        { x: size * 0.55, y: str2y, color: '#4ecdc4' }, // 5
+        { x: size * 0.75, y: str2y, color: '#4ecdc4' }, // 6
+      ];
+      positions.forEach(({ x, y, color }) => {
+        ctx.beginPath(); ctx.arc(x, y, dotR, 0, Math.PI * 2);
+        ctx.fillStyle = color; ctx.fill();
+      });
+      return c.toDataURL('image/png');
+    }
+
+    const iconUrl = makeIcon(512);
+    const iconUrl180 = makeIcon(180);
+
+    const setLink = (rel, sizes, href) => {
+      let l = document.querySelector(`link[rel="${rel}"]${sizes ? `[sizes="${sizes}"]` : ''}`);
+      if (!l) { l = document.createElement('link'); l.rel = rel; if (sizes) l.sizes = sizes; document.head.appendChild(l); }
+      l.href = href;
+    };
+    setLink('apple-touch-icon', '180x180', iconUrl180);
+    setLink('icon', '512x512', iconUrl);
+
+    // iOS standalone scroll lock
+    window.scrollTo(0, 0);
+    const lockScroll = () => { if (window.scrollY !== 0 || window.scrollX !== 0) window.scrollTo(0, 0); };
+    window.addEventListener('scroll', lockScroll, { passive: true });
+
+    document.head.appendChild(style);
+    const setMeta = (name, content) => {
+      let m = document.querySelector(`meta[name="${name}"]`);
+      if (!m) { m = document.createElement('meta'); m.name = name; document.head.appendChild(m); }
+      m.content = content;
+    };
+    setMeta('theme-color', '#0f0e17');
+    setMeta('viewport', 'width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover');
+    setMeta('apple-mobile-web-app-capable', 'yes');
+    setMeta('apple-mobile-web-app-status-bar-style', 'black-translucent');
+    setMeta('apple-mobile-web-app-title', 'L7/LL Trainer');
+
+    const manifest = {
+      name: 'L7 / LL Root Trainer', short_name: 'RootTrainer',
+      description: 'Diatonic chord root note patterns for guitar.',
+      start_url: '.', display: 'standalone', orientation: 'portrait',
+      background_color: '#0f0e17', theme_color: '#0f0e17',
+      icons: [
+        { src: iconUrl180, sizes: '180x180', type: 'image/png' },
+        { src: iconUrl,    sizes: '512x512', type: 'image/png' },
+      ],
+    };
+    const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+    const murl = URL.createObjectURL(blob);
+    let mlink = document.querySelector('link[rel="manifest"]');
+    if (!mlink) { mlink = document.createElement('link'); mlink.rel = 'manifest'; document.head.appendChild(mlink); }
+    mlink.href = murl;
+
+    return () => {
+      document.head.removeChild(style);
+      window.removeEventListener('scroll', lockScroll);
+      URL.revokeObjectURL(murl);
+    };
+  }, []);
 
   // Quiz
   const [qPhase, setQPhase] = useState('setup'); // setup | playing | done
@@ -1277,6 +1516,8 @@ export default function App() {
   );
 
   // ── Tabs ─────────────────────────────────────────────────────────────────────
+  const scrollRef = useRef(null);
+
   const TABS = [
     { id: 'learn', icon: '🎸', label: 'Learn' },
     { id: 'quiz',  icon: '🎯', label: 'Quiz'  },
@@ -1285,37 +1526,98 @@ export default function App() {
 
   return (
     <div style={{
-      background: BG, minHeight: '100vh', color: TEXT0,
+      background: BG,
+      height: '100dvh',
+      display: 'flex',
+      flexDirection: 'column',
+      color: TEXT0,
       fontFamily: "'Segoe UI',system-ui,sans-serif",
-      maxWidth: '100vw', overflowX: 'hidden', paddingBottom: 80,
+      WebkitFontSmoothing: 'antialiased',
+      paddingTop: 'env(safe-area-inset-top)',
     }}>
       {/* Header */}
       <div style={{
         padding: '10px 14px', borderBottom: `1px solid ${BG3}`,
-        background: BG2, position: 'sticky', top: 0, zIndex: 100,
+        background: BG2, flexShrink: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
-        <div style={{ fontSize: 16, fontWeight: 900, lineHeight: 1.1 }}>
-          🎸 <span style={{ color: GOLD }}>L7</span> / <span style={{ color: TEAL }}>LL</span> Root Trainer
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 900, lineHeight: 1.1 }}>
+            🎸 <span style={{ color: GOLD }}>L7</span> / <span style={{ color: TEAL }}>LL</span> Root Trainer
+          </div>
+          <div style={{ fontSize: 9, color: TEXT2, letterSpacing: 1, paddingLeft: 22, marginTop: 1 }}>
+            DIATONIC CHORD ROOT PATTERNS · by Zak
+          </div>
         </div>
-        <div style={{ fontSize: 9, color: TEXT2, letterSpacing: 1, paddingLeft: 22, marginTop: 1 }}>
-          DIATONIC CHORD ROOT PATTERNS
-        </div>
+        <button onClick={() => setShowData(p => !p)} style={{
+          background: 'transparent', border: `1px solid ${BORDER}`,
+          color: TEXT2, padding: '5px 9px', borderRadius: 7,
+          cursor: 'pointer', fontSize: 10, fontWeight: 700, minHeight: 34,
+          whiteSpace: 'nowrap', fontFamily: "'Segoe UI',system-ui,sans-serif",
+          touchAction: 'manipulation',
+        }}>⬆⬇ Data</button>
       </div>
+
+      {/* Data panel */}
+      {showData && (
+        <div style={{
+          background: BG2, borderBottom: `1px solid ${BG3}`,
+          padding: '9px 14px', display: 'flex', alignItems: 'center',
+          gap: 8, flexWrap: 'wrap', flexShrink: 0,
+        }}>
+          <span style={{ fontSize: 10, color: TEXT2 }}>Progress backup:</span>
+          <button onClick={() => {
+            const data = { v: 1, exported: new Date().toISOString() };
+            const a = document.createElement('a');
+            a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(data, null, 2));
+            a.download = `l7ll-trainer-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          }} style={{
+            background: PURPLE + '22', color: PURPLE,
+            border: `1px solid ${PURPLE}44`, padding: '5px 12px',
+            borderRadius: 7, cursor: 'pointer', fontSize: 10, fontWeight: 700, minHeight: 34,
+            touchAction: 'manipulation',
+          }}>Export ↓</button>
+          <label style={{
+            background: TEAL + '22', color: TEAL,
+            border: `1px solid ${TEAL}44`, padding: '5px 12px',
+            borderRadius: 7, cursor: 'pointer', fontSize: 10, fontWeight: 700,
+            minHeight: 34, display: 'flex', alignItems: 'center', touchAction: 'manipulation',
+          }}>
+            Import ↑
+            <input type="file" accept=".json" style={{ display: 'none' }} onChange={e => {
+              const file = e.target.files[0]; if (!file) return;
+              const reader = new FileReader();
+              reader.onload = ev => {
+                try { JSON.parse(ev.target.result); setImportMsg('✓ Imported!'); setTimeout(() => setImportMsg(''), 3000); }
+                catch { setImportMsg('✗ Invalid file'); }
+              };
+              reader.readAsText(file); e.target.value = '';
+            }} />
+          </label>
+          {importMsg && (
+            <span style={{ fontSize: 10, fontWeight: 700, color: importMsg.startsWith('✓') ? GREEN : RED }}>
+              {importMsg}
+            </span>
+          )}
+          <span style={{ fontSize: 9, color: TEXT2, marginLeft: 'auto' }}>by Zak</span>
+        </div>
+      )}
 
       {/* Tab bar */}
       <div style={{
         display: 'flex', background: BG2, borderBottom: `1px solid ${BG3}`,
-        position: 'sticky', top: 44, zIndex: 99,
+        flexShrink: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none',
       }}>
         {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{
-            flex: 1, padding: '10px 4px',
+          <button key={t.id} onClick={() => { setTab(t.id); if (scrollRef.current) scrollRef.current.scrollTop = 0; }} style={{
+            flex: '0 0 auto', padding: '10px 10px',
             background: 'transparent', border: 'none', cursor: 'pointer',
             fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase',
             color: tab === t.id ? GOLD : TEXT2,
             borderBottom: `2px solid ${tab === t.id ? GOLD : 'transparent'}`,
             minHeight: 44, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-            fontFamily: "'Segoe UI',system-ui,sans-serif",
+            fontFamily: "'Segoe UI',system-ui,sans-serif", touchAction: 'manipulation',
           }}>
             <span style={{ fontSize: 16 }}>{t.icon}</span>
             {t.label}
@@ -1323,12 +1625,20 @@ export default function App() {
         ))}
       </div>
 
-      {/* Content */}
-      <div>
-        {tab === 'learn' && renderLearn()}
-        {tab === 'quiz'  && renderQuiz()}
-        {tab === 'guide' && renderGuide()}
+      {/* Scrollable content */}
+      <div ref={scrollRef} style={{
+        flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch',
+        overscrollBehaviorY: 'none',
+      }}>
+        <div style={{ paddingBottom: 'max(32px,env(safe-area-inset-bottom))' }}>
+          {tab === 'learn' && renderLearn()}
+          {tab === 'quiz'  && renderQuiz()}
+          {tab === 'guide' && renderGuide()}
+        </div>
       </div>
+
+      {/* Install banner (fixed, bottom sheet) */}
+      <BannerStack />
     </div>
   );
 }
