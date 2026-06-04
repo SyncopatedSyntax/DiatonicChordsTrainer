@@ -289,9 +289,9 @@ function Fretboard({ shape, rootFret, keyIdx, highlightDeg, onDotClick, quizMode
   const nutX = ML;
 
   return (
-    <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+    <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', justifyContent: 'center' }}>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}
-        style={{ display: 'block', minWidth: W }}>
+        style={{ display: 'block' }}>
 
         {/* Inlay dots */}
         {INLAYS.filter(f => f > startFret && f < startFret + fretCount).map(f => (
@@ -306,6 +306,19 @@ function Fretboard({ shape, rootFret, keyIdx, highlightDeg, onDotClick, quizMode
           </>
         )}
 
+        {/* Fret numbers — above top string, so dots never cover them */}
+        {Array.from({ length: fretCount }, (_, i) => {
+          const fret = startFret + i + 1;
+          if (fret < 1) return null;
+          return (
+            <text key={fret} x={ML + (i + 0.5) * FS} y={MT - 7}
+              textAnchor="middle" fontSize={7 * size}
+              fill={TEXT2} fontFamily="'Segoe UI',system-ui,sans-serif">
+              {fret}
+            </text>
+          );
+        })}
+
         {/* Fret lines */}
         {Array.from({ length: fretCount + 1 }, (_, i) => {
           const x = ML + i * FS;
@@ -317,7 +330,7 @@ function Fretboard({ shape, rootFret, keyIdx, highlightDeg, onDotClick, quizMode
           );
         })}
 
-        {/* String lines */}
+        {/* String lines — uniform realistic gauge, no active-string thickening */}
         {Array.from({ length: NUM_STRINGS }, (_, si) => {
           const y = sy(si);
           const isActive = si === shape.rootStrIdx || si === shape.upperStrIdx;
@@ -325,7 +338,7 @@ function Fretboard({ shape, rootFret, keyIdx, highlightDeg, onDotClick, quizMode
           return (
             <line key={si} x1={ML} y1={y} x2={W - MR} y2={y}
               stroke={isActive ? BORDER2 : BORDER}
-              strokeWidth={thick * (isActive ? 2 : 1)} />
+              strokeWidth={thick} />
           );
         })}
 
@@ -339,19 +352,6 @@ function Fretboard({ shape, rootFret, keyIdx, highlightDeg, onDotClick, quizMode
               fontWeight={isActive ? '700' : '400'}
               fontFamily="'Segoe UI',system-ui,sans-serif">
               {STRING_LABELS[si]}
-            </text>
-          );
-        })}
-
-        {/* Fret numbers */}
-        {Array.from({ length: fretCount }, (_, i) => {
-          const fret = startFret + i + 1;
-          if (fret < 1) return null;
-          return (
-            <text key={fret} x={ML + (i + 0.5) * FS} y={H - 4}
-              textAnchor="middle" fontSize={7 * size}
-              fill={TEXT2} fontFamily="'Segoe UI',system-ui,sans-serif">
-              {fret}fr
             </text>
           );
         })}
