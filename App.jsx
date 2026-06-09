@@ -192,6 +192,277 @@ const SHAPE_JIMMY_T = {
 const ALL_SHAPES = [SHAPE_MAJOR_L7, SHAPE_MAJOR_LL, SHAPE_MINOR_L7, SHAPE_MINOR_LL, SHAPE_JIMMY_T];
 const SHAPES_BY_ID = Object.fromEntries(ALL_SHAPES.map(s => [s.id, s]));
 
+// ─── GUITAR-FRIENDLY KEYS ─────────────────────────────────────────────────────
+// Ordered by how common they are in guitar-driven songs
+const GUITAR_KEYS = [7,9,4,2,0,5,11,4]; // G,A,E,D,C,F,B — dedupe below
+const GUITAR_KEY_IDXS = [7,9,4,2,0,5,11,3]; // G=7,A=9,E=4,D=2,C=0,F=5,B=11,Eb=3
+
+// ─── PRACTICE PROGRESSIONS ────────────────────────────────────────────────────
+// degrees: array of {rn: Roman numeral string, degIdx: 0-6 diatonic index}
+// degIdx is the diatonic scale degree (0=I/i, 1=ii/ii°, 2=iii/bIII, 3=IV/iv, 4=V/v, 5=vi/bVI, 6=vii°/bVII)
+// For secondary dominants like VI7: we use the base diatonic degree (5 for vi)
+// isMinor: whether this is a minor key progression
+const PRACTICE_PROGS = [
+  // ── JAZZ ──────────────────────────────────────────────────────────────────
+  {
+    id: 'iivi_c', title: 'ii–V–I', feel: 'Jazz', feelGroup: 'Jazz',
+    isMinor: false,
+    desc: 'The cornerstone of jazz. ii creates tension, V raises it, I resolves.',
+    degrees: [{rn:'ii',d:1},{rn:'V',d:4},{rn:'I',d:0}],
+    shapes: [
+      {id:'major_l7', reason:'ii is on str6 +2fr, V on str5 +2fr, I is root on str6'},
+      {id:'major_ll', reason:'Shows ii and V symmetrically around the root'},
+    ],
+    tip: 'Find the I root on str6 first. Then ii is 2 frets up on the same string — V is directly above ii on str5. Practice the root movement without looking.',
+  },
+  {
+    id: 'i_vi_ii_v', title: 'I–VI–ii–V', feel: 'Jazz', feelGroup: 'Jazz',
+    isMinor: false,
+    desc: 'Classic turnaround. VI7 is a secondary dominant — same fret position as vi.',
+    degrees: [{rn:'I',d:0},{rn:'VI7',d:5},{rn:'ii',d:1},{rn:'V',d:4}],
+    shapes: [
+      {id:'major_l7', reason:'All 4 roots visible in one shape'},
+      {id:'major_ll', reason:'VI and ii cluster on the left side of the LL shape'},
+    ],
+    tip: 'VI7 shares the same root fret as vi — treat it as a coloured vi. In the L7 shape, notice how VI and ii are both on str6 close together.',
+  },
+  {
+    id: 'jazz_turnaround', title: 'Jazz Turnaround · I–VI–ii–V', feel: 'Jazz', feelGroup: 'Jazz',
+    isMinor: false,
+    desc: 'Cmaj7–A7–Dm7–G7. Cycle-of-4ths with secondary dominant.',
+    degrees: [{rn:'I',d:0},{rn:'VI7',d:5},{rn:'ii',d:1},{rn:'V',d:4}],
+    shapes: [
+      {id:'major_ll', reason:'I, VI, ii, V all sit within 3 frets in the LL shape'},
+      {id:'major_l7', reason:'Classic view: I on str6, all others visible nearby'},
+    ],
+    tip: 'In the LL shape, I and VI are on str6 at root and −3fr. Then ii and V jump to str5. The whole turnaround fits in your hand without shifting.',
+  },
+  {
+    id: 'autumn_leaves', title: 'Autumn Leaves', feel: 'Jazz Standard', feelGroup: 'Jazz',
+    isMinor: false,
+    desc: 'ii–V–I–IV descending through the cycle of 4ths.',
+    degrees: [{rn:'ii',d:1},{rn:'V',d:4},{rn:'I',d:0},{rn:'IV',d:3}],
+    shapes: [
+      {id:'major_l7', reason:'ii on str6, V/IV on str5 — all visible in one shape'},
+      {id:'major_ll', reason:'IV and I share the same fret on str5/str6 in LL'},
+    ],
+    tip: 'Notice that IV and I are the same fret on different strings in the L7 shape. The ii–V–I–IV movement cycles through all three fret columns of the shape.',
+  },
+  {
+    id: 'drop2_iivi', title: 'Drop 2 · ii–V–I', feel: 'Jazz Comping', feelGroup: 'Jazz',
+    isMinor: false,
+    desc: 'Smooth voice leading with shell and drop 2 voicings.',
+    degrees: [{rn:'ii',d:1},{rn:'V',d:4},{rn:'I',d:0}],
+    shapes: [
+      {id:'major_l7', reason:'Clearest view for ii-V-I root movement on bottom 2 strings'},
+    ],
+    tip: 'For jazz comping, find the root with L7 first, then build your shell chord (R-3-7) above each root. The root movement is the map.',
+  },
+  {
+    id: 'rhythm_changes_a', title: 'Rhythm Changes · A section', feel: 'Bebop', feelGroup: 'Jazz',
+    isMinor: false,
+    desc: "Gershwin's I–VI–ii–V — backbone of bebop for 80+ years.",
+    degrees: [{rn:'I',d:0},{rn:'VI7',d:5},{rn:'ii',d:1},{rn:'V',d:4}],
+    shapes: [
+      {id:'major_l7', reason:'Standard position — I on str6, all others close by'},
+      {id:'major_ll', reason:'Shows the left-right symmetry of I/VI and ii/V pairs'},
+    ],
+    tip: 'This is the same as I–VI–ii–V. Master this shape in all 12 keys. Start with Bb (the original key) — root on str6 fret 6.',
+  },
+  {
+    id: 'rhythm_changes_b', title: 'Rhythm Changes · B section', feel: 'Bebop', feelGroup: 'Jazz',
+    isMinor: false,
+    desc: 'III7–VI7–II7–V7: secondary dominants descending the circle of 5ths.',
+    degrees: [{rn:'III7',d:2},{rn:'VI7',d:5},{rn:'II7',d:1},{rn:'V7',d:4}],
+    shapes: [
+      {id:'major_l7', reason:'All 4 secondary dominant roots sit within the L7 shape'},
+    ],
+    tip: 'Treat each chord as a temporary I with a L7 shape. III7 root is on str6 +4fr, VI7 on str6 +9fr (or same shape 5 frets up). Feel the descending 5ths.',
+  },
+  {
+    id: 'minor_iivi', title: 'Minor ii–V–i', feel: 'Jazz', feelGroup: 'Jazz',
+    isMinor: true,
+    desc: 'Dark jazz minor cadence. Half-diminished and altered dominant.',
+    degrees: [{rn:'ii°',d:1},{rn:'V',d:4},{rn:'i',d:0}],
+    shapes: [
+      {id:'minor_l7', reason:'ii° on str6 −5fr, V on str6 same fret, i (root) on str5'},
+      {id:'minor_ll', reason:'All 3 chords in compact LL cluster'},
+    ],
+    tip: 'In Minor L7, the ii° is 5 frets below the root on str6. V is directly below the root on str6 at the same fret. Practice locating these without looking.',
+  },
+  // ── BLUES ────────────────────────────────────────────────────────────────
+  {
+    id: 'blues_12_e', title: '12-Bar Blues', feel: 'Blues', feelGroup: 'Blues',
+    isMinor: false,
+    desc: 'I7–IV7–V7. The foundation. Three dominant 7ths.',
+    degrees: [{rn:'I',d:0},{rn:'IV',d:3},{rn:'V',d:4}],
+    shapes: [
+      {id:'major_l7', reason:'I on str6, IV and V on str5 at same fret and +2fr — the L7 7-shape'},
+      {id:'jimmy_t', reason:'IV and V are the two str6 dots directly below I on str5'},
+    ],
+    tip: 'This is the shape in its purest form. I7 is the root on str6. IV is directly above on str5 (same fret). V is one step right on str5. Three chords, all reachable without shifting.',
+  },
+  {
+    id: 'blues_minor', title: 'Minor Blues', feel: 'Blues', feelGroup: 'Blues',
+    isMinor: true,
+    desc: 'i7–iv7–V7b9. Darker, more melancholic than major blues.',
+    degrees: [{rn:'i',d:0},{rn:'iv',d:3},{rn:'V',d:4}],
+    shapes: [
+      {id:'minor_l7', reason:'i on str5, iv and V on str6 adjacent — compact minor shape'},
+      {id:'minor_ll', reason:'i at root, iv directly above on str5, V one step right'},
+    ],
+    tip: 'In Minor L7, root (i) is on str5. iv is directly below on str6 same fret. V is +2fr on str6. Feel the difference from major blues — the root string flips.',
+  },
+  // ── POP & ROCK ───────────────────────────────────────────────────────────
+  {
+    id: 'i_v_vi_iv', title: 'I–V–vi–IV', feel: 'Pop', feelGroup: 'Rock & Pop',
+    isMinor: false,
+    desc: 'The axis progression. Underlies hundreds of pop hits.',
+    degrees: [{rn:'I',d:0},{rn:'V',d:4},{rn:'vi',d:5},{rn:'IV',d:3}],
+    shapes: [
+      {id:'major_l7', reason:'All 4 roots visible — I/vi on str6, V/IV on str5'},
+      {id:'major_ll', reason:'vi sits left of root in LL — great for seeing I→vi movement'},
+    ],
+    tip: 'In the L7 shape, I and vi are both on str6. V and IV are on str5. Practice jumping between the two strings to feel the pop loop in your hands.',
+  },
+  {
+    id: 'i_iv_v', title: 'I–IV–V', feel: 'Folk/Country', feelGroup: 'Rock & Pop',
+    isMinor: false,
+    desc: 'Three chords, a million songs. Folk, country, rock n roll.',
+    degrees: [{rn:'I',d:0},{rn:'IV',d:3},{rn:'V',d:4}],
+    shapes: [
+      {id:'major_l7', reason:'The defining shape for I-IV-V — I on str6, IV/V on str5'},
+      {id:'jimmy_t', reason:'IV and V are on str6 flanking the root on str5'},
+    ],
+    tip: 'The L7 "7 shape" IS the I–IV–V shape. The corner of the 7 is IV and V. Once you can find I anywhere on str6, you automatically know IV and V.',
+  },
+  {
+    id: 'i_bvii_iv', title: 'I–bVII–IV', feel: 'Rock', feelGroup: 'Rock & Pop',
+    isMinor: false,
+    desc: 'Mixolydian borrowed bVII. Hendrix to Oasis.',
+    degrees: [{rn:'I',d:0},{rn:'bVII',d:6},{rn:'IV',d:3}],
+    shapes: [
+      {id:'major_l7', reason:'I on str6, IV on str5 same fret; bVII is 7°position −1fr'},
+    ],
+    tip: 'bVII sits at the 7° position (one fret below I on str6). In the L7 shape it is already shown as the dim dot — just use it as a major chord instead. I→bVII→IV feels like a backwards walk.',
+  },
+  {
+    id: 'i_iii_iv_v', title: 'I–iii–IV–V', feel: 'Pop/Soul', feelGroup: 'Rock & Pop',
+    isMinor: false,
+    desc: 'The mediant iii creates a flowing, optimistic quality.',
+    degrees: [{rn:'I',d:0},{rn:'iii',d:2},{rn:'IV',d:3},{rn:'V',d:4}],
+    shapes: [
+      {id:'major_l7', reason:'I on str6, iii on str6 +4fr, IV and V on str5'},
+    ],
+    tip: 'iii shares a fret column with IV in the L7 shape — iii is on str6 where IV would be on str5. Practice the stepwise root movement: I → iii (+4) → IV (jump to str5) → V (+2).',
+  },
+  {
+    id: 'i_vi_iv_v', title: 'I–vi–IV–V', feel: 'Pop/50s', feelGroup: 'Rock & Pop',
+    isMinor: false,
+    desc: 'The 50s doo-wop progression. Timeless.',
+    degrees: [{rn:'I',d:0},{rn:'vi',d:5},{rn:'IV',d:3},{rn:'V',d:4}],
+    shapes: [
+      {id:'major_l7', reason:'I and vi on str6, IV and V on str5 — one shape covers all'},
+      {id:'major_ll', reason:'vi sits at −3fr from root — LL groups I/vi naturally'},
+    ],
+    tip: 'In L7, vi is +9fr on str6 (or think of it as the top of the teal L). In LL, vi is only 3 frets left of root — much easier to navigate. Use LL for this progression.',
+  },
+  {
+    id: 'andalusian', title: 'Andalusian Cadence', feel: 'Flamenco', feelGroup: 'Rock & Pop',
+    isMinor: true,
+    desc: 'i–bVII–bVI–V. Phrygian descent. Ancient and cinematic.',
+    degrees: [{rn:'i',d:0},{rn:'bVII',d:6},{rn:'bVI',d:5},{rn:'V',d:4}],
+    shapes: [
+      {id:'minor_l7', reason:'i on str5, bVII/bVI are teal (major) dots on str6, V below root'},
+      {id:'minor_ll', reason:'bVII and bVI are the teal L in minor LL — right side of shape'},
+    ],
+    tip: 'In Minor L7, bVII is on str5 at −2fr, bVI at −4fr — they are the teal group. The descending bass line i→bVII→bVI→V walks left along the shape. Feel the gravity pulling left.',
+  },
+  {
+    id: 'i_bvii_bvi_v', title: 'i–bVII–bVI–V', feel: 'Rock/Classical', feelGroup: 'Rock & Pop',
+    isMinor: true,
+    desc: 'Natural minor descent. Flamenco to metal, film scores.',
+    degrees: [{rn:'i',d:0},{rn:'bVII',d:6},{rn:'bVI',d:5},{rn:'V',d:4}],
+    shapes: [
+      {id:'minor_l7', reason:'Same shape as Andalusian — natural minor descent'},
+      {id:'minor_ll', reason:'bVII and bVI form the teal L in minor LL'},
+    ],
+    tip: 'Identical to Andalusian in terms of root positions. The Minor L7 is your go-to shape for any natural minor descending progression.',
+  },
+  // ── SOUL & R&B ───────────────────────────────────────────────────────────
+  {
+    id: 'neo_soul', title: 'Neo-Soul · I–III7–IV–iv', feel: 'Neo-Soul/R&B', feelGroup: 'Soul & R&B',
+    isMinor: false,
+    desc: 'The chromatic III7→iv colour shift — the neo-soul signature.',
+    degrees: [{rn:'I',d:0},{rn:'III7',d:2},{rn:'IV',d:3},{rn:'iv',d:3}],
+    shapes: [
+      {id:'major_l7', reason:'I on str6, III7 on str6 +4fr, IV on str5 same fret as root'},
+    ],
+    tip: 'III7 and IV share the same fret column (III7 on str6, IV on str5). The iv chord is same fret as IV — just a quality change. Practice feeling that chromatic colour shift without moving your hand.',
+  },
+  {
+    id: 'gospel', title: 'Gospel · I–IV–V', feel: 'Gospel', feelGroup: 'Soul & R&B',
+    isMinor: false,
+    desc: 'The gospel shuffle. Dominant 7ths throughout.',
+    degrees: [{rn:'I',d:0},{rn:'IV',d:3},{rn:'V',d:4}],
+    shapes: [
+      {id:'major_l7', reason:'Classic I-IV-V shape — the 7 shape corner IS the gospel move'},
+      {id:'jimmy_t', reason:'IV and V on str6, I on str5 — upside-down view of the same move'},
+    ],
+    tip: 'Gospel favours the V7→I resolution heavily. In the L7 shape, practice jumping from V (str5 +2fr) back to I (str6 root) repeatedly until it feels automatic.',
+  },
+  // ── MINOR / JAZZ MINOR ────────────────────────────────────────────────────
+  {
+    id: 'dorian_vamp', title: 'Dorian Vamp · i–IV', feel: 'Jazz/Fusion', feelGroup: 'Jazz',
+    isMinor: true,
+    desc: 'Minor i7 to major IV7. The Dorian modal colour.',
+    degrees: [{rn:'i',d:0},{rn:'IV',d:3}],
+    shapes: [
+      {id:'minor_l7', reason:'i on str5, IV is the red dot on str6 same fret — direct vertical move'},
+      {id:'minor_ll', reason:'i and IV share the same fret column in Minor LL'},
+    ],
+    tip: 'The Dorian sound comes from the major IV chord against a minor tonic. In Minor L7, IV (red) sits directly below i on str6. The move is purely vertical — same fret, different string.',
+  },
+  {
+    id: 'so_what', title: 'So What · i–bii', feel: 'Modal Jazz', feelGroup: 'Jazz',
+    isMinor: true,
+    desc: 'Modal vamp. i7 then a half-step up to bii. Miles Davis.',
+    degrees: [{rn:'i',d:0},{rn:'bii',d:6}],
+    shapes: [
+      {id:'minor_ll', reason:'Root then +3fr on str5 — very compact, just a short slide'},
+    ],
+    tip: 'bii is only 3 frets to the right of the root in Minor LL. The whole progression is a slight rightward shift. Practice making this sound intentional, not like a mistake.',
+  },
+  {
+    id: 'bossa_nova', title: 'Bossa Nova · I–vi–ii–V', feel: 'Bossa Nova', feelGroup: 'Jazz',
+    isMinor: false,
+    desc: 'The classic bossa loop. Smooth voice leading.',
+    degrees: [{rn:'I',d:0},{rn:'vi',d:5},{rn:'ii',d:1},{rn:'V',d:4}],
+    shapes: [
+      {id:'major_ll', reason:'vi is left of root in LL — creates the smooth back-and-forth feel'},
+      {id:'major_l7', reason:'Standard view with I/vi on str6, ii/V forward on str5'},
+    ],
+    tip: 'Bossa Nova is smooth, so favour the LL shape where vi (−3fr) and ii (str5, −3fr) mirror each other. The shape feels balanced left-right around the root.',
+  },
+  {
+    id: 'samba', title: 'Samba · I–vi–ii–V', feel: 'Samba', feelGroup: 'Jazz',
+    isMinor: false,
+    desc: 'Same cycle as bossa but with a driving rhythmic feel.',
+    degrees: [{rn:'I',d:0},{rn:'vi',d:5},{rn:'ii',d:1},{rn:'V',d:4}],
+    shapes: [
+      {id:'major_l7', reason:'Energetic I-vi-ii-V forward momentum in L7 shape'},
+      {id:'major_ll', reason:'Shows the symmetry of the repeating cycle'},
+    ],
+    tip: 'Same roots as Bossa Nova — the difference is rhythmic. Practice this with a driving strumming pattern. In L7 the cycle goes: root str6 → vi str6 → jump to str5 for ii → V.',
+  },
+];
+
+const PROG_FEEL_GROUPS = ['All','Jazz','Blues','Rock & Pop','Soul & R&B'];
+
+// ─── PRACTICE KEY PRESETS ─────────────────────────────────────────────────────
+// Guitar-friendly keys: G(7), A(9), E(4), D(2), C(0), F(5), B(11), Eb(3)
+const COMMON_KEY_IDXS = [7, 9, 4, 2, 0, 5, 11, 3];
+
 // Degree labels
 const MAJ_LABELS = ['1','2m','3m','4','5','6m','7°'];
 const MIN_LABELS = ['1m','2°','b3','4m','5m','b6','b7'];
@@ -261,6 +532,132 @@ if (typeof document !== 'undefined' && !document.getElementById('ct-pulse-style'
   `;
   document.head.appendChild(style);
 }
+// ─── PRACTICE FRETBOARD ────────────────────────────────────────────────────────
+function PracticeFretboard({ shape, rootFret, progDegSet, progDegrees }) {
+  const isMinor = shape.isMinor;
+  const size = 1;
+  const allFrets = shape.dots.map(d => rootFret + d.fo).filter(f => f >= 0);
+  const minF = Math.max(0, Math.min(...allFrets) - 1);
+  const maxF = Math.max(...allFrets) + 1;
+  const fretCount = Math.max(7, maxF - minF + 1);
+  const startFret = minF;
+  const ML = 22, MR = 8, MT = 22, MB = 10;
+  const NUM_STRINGS = 6;
+  const SS = 26, FS = 34, DR_NORMAL = 10, DR_PROG = 13;
+  const W = ML + MR + fretCount * FS;
+  const H = MT + MB + (NUM_STRINGS - 1) * SS;
+  const fx = fret => ML + (fret - startFret) * FS + FS / 2;
+  const sy = si => MT + (5 - si) * SS;
+  const INLAYS = [3,5,7,9,12,15,17,19,21];
+  // Sequence map: first occurrence of each degree in the progression
+  const seqMap = {};
+  progDegrees.forEach((c, i) => { if (!(c.d in seqMap)) seqMap[c.d] = i + 1; });
+
+  return (
+    <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', justifyContent: 'center' }}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: 'block' }}>
+        {/* Inlays */}
+        {INLAYS.filter(f => f > startFret && f < startFret + fretCount).map(f => (
+          <circle key={f} cx={fx(f) - FS/2} cy={H/2} r={3} fill={BG3} opacity={0.8} />
+        ))}
+        {/* Fret numbers above strings */}
+        {Array.from({ length: fretCount }, (_, i) => {
+          const fret = startFret + i + 1;
+          return fret < 1 ? null : (
+            <text key={fret} x={ML + (i + 0.5) * FS} y={MT - 7}
+              textAnchor="middle" fontSize={7} fill={TEXT2}
+              fontFamily="'Segoe UI',system-ui,sans-serif">{fret}</text>
+          );
+        })}
+        {/* Fret lines */}
+        {Array.from({ length: fretCount + 1 }, (_, i) => {
+          const x = ML + i * FS;
+          const isNut = startFret === 0 && i === 0;
+          return <line key={i} x1={x} y1={MT} x2={x} y2={H - MB}
+            stroke={isNut ? '#c8c4dc' : BORDER} strokeWidth={isNut ? 3 : 1} strokeLinecap="round" />;
+        })}
+        {/* String lines */}
+        {Array.from({ length: NUM_STRINGS }, (_, si) => {
+          const isActive = si === shape.rootStrIdx || si === shape.upperStrIdx;
+          const thick = [1.8,1.4,1.1,0.9,0.7,0.5][si];
+          return (
+            <g key={si}>
+              <line x1={ML} y1={sy(si)} x2={W - MR} y2={sy(si)}
+                stroke={isActive ? BORDER2 : BORDER} strokeWidth={thick} />
+              <text x={ML - 5} y={sy(si)} textAnchor="end" dominantBaseline="central"
+                fontSize={8} fill={isActive ? TEXT1 : TEXT2}
+                fontWeight={isActive ? '700' : '400'}
+                fontFamily="'Segoe UI',system-ui,sans-serif">{STRING_LABELS[si]}</text>
+            </g>
+          );
+        })}
+        {/* Connector lines — full opacity between prog dots, dim otherwise */}
+        {[
+          { path: shape.redPath,  color: COLOR_MAJ },
+          { path: shape.tealPath, color: COLOR_MIN },
+        ].map(({ path, color }) =>
+          path.slice(0,-1).map((a, i) => {
+            const b = path[i+1];
+            const dotA = shape.dots.find(d => d.si === a.si && d.fo === a.fo);
+            const dotB = shape.dots.find(d => d.si === b.si && d.fo === b.fo);
+            const aIn = dotA && progDegSet.has(dotA.d);
+            const bIn = dotB && progDegSet.has(dotB.d);
+            const af = rootFret + a.fo, bf = rootFret + b.fo;
+            if (af < 0 || bf < 0) return null;
+            const op = aIn && bIn ? 0.9 : 0.2;
+            return <line key={`${color}${i}`}
+              x1={fx(af)} y1={sy(a.si)} x2={fx(bf)} y2={sy(b.si)}
+              stroke={color} strokeWidth={op > 0.5 ? 3 : 1.5}
+              strokeLinecap="round" opacity={op} />;
+          })
+        )}
+        {/* Dots */}
+        {shape.dots.map((dot, i) => {
+          const fret = rootFret + dot.fo;
+          if (fret < 0) return null;
+          const cx = fx(fret), cy = sy(dot.si);
+          const isRoot = dot.d === 0;
+          const inProg = progDegSet.has(dot.d);
+          const color = getDotColor(dot.d, shape);
+          const dr = inProg ? DR_PROG : DR_NORMAL;
+          const op = inProg ? 1 : 0.3;
+          const label = degLabel(dot.d, isMinor);
+          const seq = seqMap[dot.d];
+          const fs = label.length > 2 ? 7 : 8;
+          return (
+            <g key={i}>
+              {isRoot && (<>
+                <circle className="ct-pulse-ring-1" cx={cx} cy={cy} r={dr}
+                  fill="none" stroke={color} strokeWidth={2.5} opacity={op} />
+                <circle className="ct-pulse-ring-2" cx={cx} cy={cy} r={dr}
+                  fill="none" stroke={color} strokeWidth={1.5} opacity={op} />
+              </>)}
+              {inProg && !isRoot && (
+                <circle cx={cx} cy={cy} r={dr + 2.5}
+                  fill="none" stroke="#fff" strokeWidth={1.5} opacity={0.35} />
+              )}
+              <circle cx={cx} cy={cy} r={dr} fill={color} opacity={op} />
+              <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central"
+                fontSize={fs} fill="#111" fontWeight="800"
+                fontFamily="'Segoe UI',system-ui,sans-serif" opacity={inProg ? 1 : 0.5}>
+                {label}
+              </text>
+              {inProg && seq && (<>
+                <circle cx={cx + dr * 0.75} cy={cy - dr * 0.75} r={6}
+                  fill={BG} stroke={color} strokeWidth={1} />
+                <text x={cx + dr * 0.75} y={cy - dr * 0.75}
+                  textAnchor="middle" dominantBaseline="central"
+                  fontSize={6} fill={color} fontWeight="900"
+                  fontFamily="'Segoe UI',system-ui,sans-serif">{seq}</text>
+              </>)}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
 function Fretboard({ shape, rootFret, keyIdx, highlightDeg, onDotClick, quizMode, revealAll, hardMode = false, size = 1 }) {
   const isMinor = shape.isMinor;
 
@@ -1426,6 +1823,291 @@ export default function App() {
     );
   };
 
+  // ── Practice tab state ───────────────────────────────────────────────────────
+  const [practiceProgIdx, setPracticeProgIdx] = useState(null);
+  const [practiceFeel, setPracticeFeel] = useState('All');
+  const [practiceShapeId, setPracticeShapeId] = useState(null);
+  const [practiceTipOpen, setPracticeTipOpen] = useState(true);
+  const [practiceKeyIdx, setPracticeKeyIdx] = useState(7); // G default
+  const [showAllKeys, setShowAllKeys] = useState(false);
+
+  const getFilteredProgs = useCallback((feelFilter) => {
+    if (feelFilter === 'All') return PRACTICE_PROGS;
+    return PRACTICE_PROGS.filter(p => p.feelGroup === feelFilter);
+  }, []);
+
+  const loadRandomProg = useCallback((feelFilter) => {
+    const pool = getFilteredProgs(feelFilter);
+    if (!pool.length) return;
+    const idx = PRACTICE_PROGS.indexOf(pool[Math.floor(Math.random() * pool.length)]);
+    setPracticeProgIdx(idx);
+    const prog = PRACTICE_PROGS[idx];
+    // Auto-select first recommended shape
+    if (prog.shapes.length > 0) setPracticeShapeId(prog.shapes[0].id);
+    setPracticeTipOpen(true);
+  }, [getFilteredProgs]);
+
+  // ── Practice tab render ──────────────────────────────────────────────────────
+  const renderPractice = () => {
+    const prog = practiceProgIdx !== null ? PRACTICE_PROGS[practiceProgIdx] : null;
+    const activeShape = prog && practiceShapeId ? SHAPES_BY_ID[practiceShapeId] : null;
+    const rf = activeShape ? getRootFret(practiceKeyIdx, activeShape.rootStrIdx) : 0;
+
+    // Which degree indices are in this progression
+    const progDegSet = prog ? new Set(prog.degrees.map(c => c.d)) : new Set();
+
+    return (
+      <div style={{ paddingBottom: 8 }}>
+
+        {/* ── Random drill card ─────────────────────────────────────────── */}
+        <div style={{ padding: '10px 14px 0' }}>
+          {/* Feel filter */}
+          <div style={{ display: 'flex', gap: 5, marginBottom: 10, flexWrap: 'wrap' }}>
+            {PROG_FEEL_GROUPS.map(g => (
+              <button key={g} onClick={() => setPracticeFeel(g)} style={{
+                padding: '4px 10px', borderRadius: 20, cursor: 'pointer',
+                border: `1px solid ${practiceFeel === g ? GOLD : BORDER}`,
+                background: practiceFeel === g ? GOLD + '22' : BG2,
+                color: practiceFeel === g ? GOLD : TEXT2,
+                fontSize: 10, fontWeight: 700,
+                fontFamily: "'Segoe UI',system-ui,sans-serif",
+              }}>{g} ({getFilteredProgs(g).length})</button>
+            ))}
+          </div>
+
+          {/* Random button */}
+          <button onClick={() => loadRandomProg(practiceFeel)} style={{
+            display: 'block', width: '100%', padding: '11px',
+            background: prog ? BG3 : GOLD,
+            color: prog ? TEXT1 : '#111',
+            border: `1px solid ${prog ? BORDER : GOLD}`,
+            borderRadius: 11, fontSize: 13, fontWeight: 900,
+            cursor: 'pointer', marginBottom: 10,
+            fontFamily: "'Segoe UI',system-ui,sans-serif",
+          }}>
+            {prog ? '↺  Load another random progression' : '🎲  Pick a random progression'}
+          </button>
+        </div>
+
+        {/* ── Drill card ────────────────────────────────────────────────── */}
+        {prog && (
+          <div style={{ padding: '0 14px 14px' }}>
+
+            {/* Title + feel */}
+            <div style={{
+              background: BG2, border: `1px solid ${BORDER2}`,
+              borderRadius: 12, padding: '11px 12px 10px', marginBottom: 10,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
+                <div style={{ fontSize: 15, fontWeight: 900, color: TEXT0 }}>{prog.title}</div>
+                <span style={{
+                  fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 5,
+                  background: PURPLE + '22', color: PURPLE, flexShrink: 0,
+                }}>{prog.feel}</span>
+              </div>
+              <div style={{ fontSize: 11, color: TEXT1, lineHeight: 1.5, marginBottom: 8 }}>{prog.desc}</div>
+
+              {/* Degree sequence */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginBottom: 10 }}>
+                {prog.degrees.map((c, i) => {
+                  const color = getDotColor(c.d, activeShape || SHAPES_BY_ID[prog.shapes[0].id]);
+                  return (
+                    <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                      <span style={{
+                        background: color + '22', color, border: `1px solid ${color}44`,
+                        borderRadius: 6, padding: '2px 7px',
+                        fontSize: 12, fontWeight: 700,
+                        fontFamily: "'Segoe UI',system-ui,sans-serif",
+                      }}>{c.rn}</span>
+                      {i < prog.degrees.length - 1 && (
+                        <span style={{ color: TEXT2, fontSize: 10 }}>→</span>
+                      )}
+                    </span>
+                  );
+                })}
+              </div>
+
+              {/* Key selector */}
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 9, color: TEXT2, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 5 }}>
+                  Key
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {(showAllKeys ? NOTE_NAMES.map((_,i) => i) : COMMON_KEY_IDXS).map(ki => (
+                    <button key={ki} onClick={() => setPracticeKeyIdx(ki)} style={{
+                      padding: '4px 8px', borderRadius: 7, cursor: 'pointer',
+                      border: `1px solid ${ki === practiceKeyIdx ? GOLD : BORDER}`,
+                      background: ki === practiceKeyIdx ? GOLD + '22' : 'transparent',
+                      color: ki === practiceKeyIdx ? GOLD : TEXT2,
+                      fontSize: 11, fontWeight: 700,
+                      fontFamily: "'Segoe UI',system-ui,sans-serif",
+                    }}>{NOTE_NAMES[ki]}</button>
+                  ))}
+                  <button onClick={() => setShowAllKeys(p => !p)} style={{
+                    padding: '4px 8px', borderRadius: 7, cursor: 'pointer',
+                    border: `1px solid ${BORDER}`,
+                    background: 'transparent', color: TEXT2,
+                    fontSize: 11, fontWeight: 700,
+                    fontFamily: "'Segoe UI',system-ui,sans-serif",
+                  }}>{showAllKeys ? '−' : '+ more'}</button>
+                </div>
+              </div>
+
+              {/* Chord names in selected key */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                {prog.degrees.map((c, i) => {
+                  const noteIdx = (practiceKeyIdx + DIATONIC_ST[c.d]) % 12;
+                  const q = prog.isMinor ? MIN_QUALITY[c.d] : MAJ_QUALITY[c.d];
+                  const name = NOTE_NAMES[noteIdx] + (q === 'min' ? 'm' : q === 'dim' ? '°' : '');
+                  // Apply alteration from rn label if present
+                  const rn = c.rn;
+                  const isAltered = rn.includes('7') || rn.includes('b9') || rn.includes('#');
+                  const suffix = isAltered && !rn.includes('ii') && !rn.includes('IV') ? '7' : '';
+                  return (
+                    <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                      <span style={{ fontSize: 11, color: TEXT0, fontWeight: 700 }}>{name}{suffix}</span>
+                      {i < prog.degrees.length - 1 && <span style={{ color: TEXT2, fontSize: 10 }}>→</span>}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Shape selector */}
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 9, color: TEXT2, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>
+                Recommended shape{prog.shapes.length > 1 ? 's' : ''}
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {prog.shapes.map(sh => {
+                  const s = SHAPES_BY_ID[sh.id];
+                  const active = practiceShapeId === sh.id;
+                  const c = s.isMinor ? TEAL : RED;
+                  return (
+                    <button key={sh.id} onClick={() => setPracticeShapeId(sh.id)} style={{
+                      flex: 1, minWidth: 0, padding: '8px 8px', borderRadius: 9, cursor: 'pointer',
+                      border: `1px solid ${active ? c : BORDER}`,
+                      background: active ? c + '18' : BG2,
+                      color: active ? c : TEXT1,
+                      textAlign: 'left',
+                      fontFamily: "'Segoe UI',system-ui,sans-serif",
+                      transition: 'all .15s',
+                    }}>
+                      <div style={{ fontSize: 11, fontWeight: 700 }}>{s.name}</div>
+                      <div style={{ fontSize: 9, color: active ? c + 'cc' : TEXT2, marginTop: 2, lineHeight: 1.4 }}>{sh.reason}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Fretboard */}
+            {activeShape && (
+              <div style={{
+                background: BG2, border: `1px solid ${BORDER2}`,
+                borderRadius: 12, padding: '10px 6px 8px', marginBottom: 10,
+              }}>
+                <PracticeFretboard
+                  shape={activeShape}
+                  rootFret={rf}
+                  progDegSet={progDegSet}
+                  progDegrees={prog.degrees}
+                />
+              </div>
+            )}
+
+            {/* Practice tip */}
+            <div style={{
+              background: GOLD + '0e', border: `1px solid ${GOLD}33`,
+              borderRadius: 11, overflow: 'hidden',
+            }}>
+              <button onClick={() => setPracticeTipOpen(p => !p)} style={{
+                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '9px 12px', background: 'transparent', border: 'none', cursor: 'pointer',
+                fontFamily: "'Segoe UI',system-ui,sans-serif",
+              }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: GOLD }}>💡 Practice tip</span>
+                <span style={{
+                  color: GOLD, fontSize: 13,
+                  transform: practiceTipOpen ? 'rotate(180deg)' : 'none',
+                  transition: 'transform .2s', display: 'inline-block',
+                }}>▾</span>
+              </button>
+              {practiceTipOpen && (
+                <div style={{ padding: '0 12px 11px', fontSize: 11, color: TEXT1, lineHeight: 1.7 }}>
+                  {prog.tip}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Browse list ────────────────────────────────────────────────── */}
+        <div style={{ padding: '0 14px 8px' }}>
+          <div style={{ fontSize: 10, color: TEXT2, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 }}>
+            All progressions
+          </div>
+          {PROG_FEEL_GROUPS.filter(g => g !== 'All').map(group => {
+            const groupProgs = PRACTICE_PROGS.filter(p => p.feelGroup === group);
+            if (!groupProgs.length) return null;
+            return (
+              <div key={group} style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 9, color: TEXT2, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 5, paddingLeft: 2 }}>
+                  {group}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  {groupProgs.map(p => {
+                    const idx = PRACTICE_PROGS.indexOf(p);
+                    const isActive = practiceProgIdx === idx;
+                    return (
+                      <div key={p.id} onClick={() => {
+                        setPracticeProgIdx(idx);
+                        setPracticeShapeId(p.shapes[0].id);
+                        setPracticeTipOpen(true);
+                        if (scrollRef.current) scrollRef.current.scrollTop = 0;
+                      }} style={{
+                        background: isActive ? BG3 : BG2,
+                        border: `1px solid ${isActive ? GOLD : BORDER}`,
+                        borderRadius: 9, padding: '8px 10px', cursor: 'pointer',
+                        transition: 'all .15s',
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: isActive ? GOLD : TEXT0, marginBottom: 3 }}>
+                              {p.title}
+                            </div>
+                            <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                              {p.shapes.map(sh => {
+                                const s = SHAPES_BY_ID[sh.id];
+                                const c = s.isMinor ? TEAL : RED;
+                                return (
+                                  <span key={sh.id} style={{
+                                    fontSize: 8, fontWeight: 700, padding: '1px 5px',
+                                    borderRadius: 4, background: c + '18', color: c,
+                                    border: `1px solid ${c}33`,
+                                  }}>{s.shortName}</span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          <span style={{
+                            fontSize: 9, color: PURPLE, background: PURPLE + '18',
+                            border: `1px solid ${PURPLE}33`, padding: '1px 6px',
+                            borderRadius: 4, flexShrink: 0, fontWeight: 700,
+                          }}>{p.feel}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   // ── Guide tab ────────────────────────────────────────────────────────────────
   const renderGuide = () => (
     <div style={{ padding: '12px 14px' }}>
@@ -1519,9 +2201,10 @@ export default function App() {
 
   // ── Return ────────────────────────────────────────────────────────────────────
   const TABS = [
-    { id: 'learn', icon: '🎸', label: 'Learn' },
-    { id: 'quiz',  icon: '🎯', label: 'Quiz'  },
-    { id: 'guide', icon: '📖', label: 'Guide' },
+    { id: 'learn',    icon: '🎸', label: 'Learn'    },
+    { id: 'practice', icon: '🎼', label: 'Practice' },
+    { id: 'quiz',     icon: '🎯', label: 'Quiz'     },
+    { id: 'guide',    icon: '📖', label: 'Guide'    },
   ];
 
   return (
@@ -1631,9 +2314,10 @@ export default function App() {
         overscrollBehaviorY: 'none',
       }}>
         <div style={{ paddingBottom: 'max(32px,env(safe-area-inset-bottom))' }}>
-          {tab === 'learn' && renderLearn()}
-          {tab === 'quiz'  && renderQuiz()}
-          {tab === 'guide' && renderGuide()}
+          {tab === 'learn'    && renderLearn()}
+          {tab === 'practice' && renderPractice()}
+          {tab === 'quiz'     && renderQuiz()}
+          {tab === 'guide'    && renderGuide()}
         </div>
       </div>
 
