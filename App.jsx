@@ -2005,7 +2005,7 @@ export default function App() {
             {activeShape && (
               <div style={{
                 background: BG2, border: `1px solid ${BORDER2}`,
-                borderRadius: 12, padding: '10px 6px 8px', marginBottom: 10,
+                borderRadius: 12, padding: '14px 10px 12px', marginBottom: 10,
               }}>
                 <PracticeFretboard
                   shape={activeShape}
