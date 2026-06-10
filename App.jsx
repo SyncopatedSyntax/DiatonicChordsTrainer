@@ -555,7 +555,7 @@ function PracticeFretboard({ shape, rootFret, progDegSet, progDegrees }) {
 
   return (
     <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', justifyContent: 'center' }}>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: 'block' }}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', overflow: 'visible' }}>
         {/* Inlays */}
         {INLAYS.filter(f => f > startFret && f < startFret + fretCount).map(f => (
           <circle key={f} cx={fx(f) - FS/2} cy={H/2} r={3} fill={BG3} opacity={0.8} />
@@ -688,7 +688,7 @@ function Fretboard({ shape, rootFret, keyIdx, highlightDeg, onDotClick, quizMode
   return (
     <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', justifyContent: 'center' }}>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}
-        style={{ display: 'block' }}>
+        style={{ display: 'block', overflow: 'visible' }}>
 
         {/* Inlay dots */}
         {INLAYS.filter(f => f > startFret && f < startFret + fretCount).map(f => (
