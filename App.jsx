@@ -554,7 +554,7 @@ function PracticeFretboard({ shape, rootFret, progDegSet, progDegrees }) {
   progDegrees.forEach((c, i) => { if (!(c.d in seqMap)) seqMap[c.d] = i + 1; });
 
   return (
-    <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', justifyContent: 'center' }}>
+    <div style={{ overflowX: 'visible', overflowY: 'visible', display: 'flex', justifyContent: 'center' }}>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', overflow: 'visible' }}>
         {/* Inlays */}
         {INLAYS.filter(f => f > startFret && f < startFret + fretCount).map(f => (
@@ -686,7 +686,7 @@ function Fretboard({ shape, rootFret, keyIdx, highlightDeg, onDotClick, quizMode
   const nutX = ML;
 
   return (
-    <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', justifyContent: 'center' }}>
+    <div style={{ overflowX: 'visible', overflowY: 'visible', display: 'flex', justifyContent: 'center' }}>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}
         style={{ display: 'block', overflow: 'visible' }}>
 
@@ -2005,7 +2005,8 @@ export default function App() {
             {activeShape && (
               <div style={{
                 background: BG2, border: `1px solid ${BORDER2}`,
-                borderRadius: 12, padding: '14px 10px 12px', marginBottom: 10,
+                borderRadius: 12, padding: '22px 18px', marginBottom: 10,
+                overflow: 'visible',
               }}>
                 <PracticeFretboard
                   shape={activeShape}
