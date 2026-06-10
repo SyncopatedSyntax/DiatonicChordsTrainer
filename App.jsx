@@ -1877,15 +1877,17 @@ export default function App() {
 
           {/* Random button */}
           <button onClick={() => loadRandomProg(practiceFeel)} style={{
-            display: 'block', width: '100%', padding: '11px',
-            background: prog ? BG3 : GOLD,
-            color: prog ? TEXT1 : '#111',
-            border: `1px solid ${prog ? BORDER : GOLD}`,
-            borderRadius: 11, fontSize: 13, fontWeight: 900,
+            display: 'block', width: '100%', padding: '16px',
+            background: GOLD,
+            color: '#111',
+            border: 'none',
+            borderRadius: 13, fontSize: 15, fontWeight: 900,
             cursor: 'pointer', marginBottom: 10,
+            letterSpacing: 0.5,
+            boxShadow: `0 4px 18px ${GOLD}44`,
             fontFamily: "'Segoe UI',system-ui,sans-serif",
           }}>
-            {prog ? '↺  Load another random progression' : '🎲  Pick a random progression'}
+            {prog ? '↺  New Random Progression' : '🎲  Pick a Random Progression'}
           </button>
         </div>
 
