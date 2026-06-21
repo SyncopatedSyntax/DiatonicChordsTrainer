@@ -2221,7 +2221,6 @@ export default function App() {
       color: TEXT0,
       fontFamily: "var(--font-body)",
       WebkitFontSmoothing: 'antialiased',
-      paddingTop: 'env(safe-area-inset-top)',
     }}>
       <AppHeader toolKey="diatonic">
         <button className="fw-header-btn" onClick={() => setShowData(p => !p)}>⬆⬇ Data</button>
