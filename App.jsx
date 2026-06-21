@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { AppHeader, TabBar } from "@fretworks/design";
 
 // ─── CONSTANTS (matching ChordTrainer exactly) ─────────────────────────────────
 const NOTE_NAMES = ['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
@@ -555,7 +556,7 @@ function PracticeFretboard({ shape, rootFret, progDegSet, progDegrees }) {
 
   return (
     <div style={{ overflowX: 'visible', overflowY: 'visible', display: 'flex', justifyContent: 'center' }}>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', overflow: 'visible' }}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', overflow: 'visible', height: 280, width: 'auto', maxWidth: '100%' }}>
         {/* Inlays */}
         {INLAYS.filter(f => f > startFret && f < startFret + fretCount).map(f => (
           <circle key={f} cx={fx(f) - FS/2} cy={H/2} r={3} fill={BG3} opacity={0.8} />
@@ -688,7 +689,7 @@ function Fretboard({ shape, rootFret, keyIdx, highlightDeg, onDotClick, quizMode
   return (
     <div style={{ overflowX: 'visible', overflowY: 'visible', display: 'flex', justifyContent: 'center' }}>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}
-        style={{ display: 'block', overflow: 'visible' }}>
+        style={{ display: 'block', overflow: 'visible', height: 280, width: 'auto', maxWidth: '100%' }}>
 
         {/* Inlay dots */}
         {INLAYS.filter(f => f > startFret && f < startFret + fretCount).map(f => (
@@ -1120,7 +1121,7 @@ export default function App() {
     setMeta('viewport', 'width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover');
     setMeta('apple-mobile-web-app-capable', 'yes');
     setMeta('apple-mobile-web-app-status-bar-style', 'black-translucent');
-    setMeta('apple-mobile-web-app-title', 'L7/LL Trainer');
+    setMeta('apple-mobile-web-app-title', 'Fretworks');
 
     const manifest = {
       name: 'L7 / LL Root Trainer', short_name: 'RootTrainer',
@@ -1132,16 +1133,15 @@ export default function App() {
         { src: iconUrl,    sizes: '512x512', type: 'image/png' },
       ],
     };
-    const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
-    const murl = URL.createObjectURL(blob);
+    // Single PWA: reference the unified shell manifest (one manifest per origin)
+    // instead of the per-app manifest built above.
     let mlink = document.querySelector('link[rel="manifest"]');
     if (!mlink) { mlink = document.createElement('link'); mlink.rel = 'manifest'; document.head.appendChild(mlink); }
-    mlink.href = murl;
+    mlink.href = '/manifest.webmanifest';
 
     return () => {
       document.head.removeChild(style);
       window.removeEventListener('scroll', lockScroll);
-      URL.revokeObjectURL(murl);
     };
   }, []);
 
@@ -2210,6 +2210,8 @@ export default function App() {
     { id: 'guide',    icon: '📖', label: 'Guide'    },
   ];
 
+  const CW = 600; // centered content max-width (matches AlteredTrainer)
+
   return (
     <div style={{
       background: BG,
@@ -2217,32 +2219,13 @@ export default function App() {
       display: 'flex',
       flexDirection: 'column',
       color: TEXT0,
-      fontFamily: "'Segoe UI',system-ui,sans-serif",
+      fontFamily: "var(--font-body)",
       WebkitFontSmoothing: 'antialiased',
       paddingTop: 'env(safe-area-inset-top)',
     }}>
-      {/* Header */}
-      <div style={{
-        padding: '10px 14px', borderBottom: `1px solid ${BG3}`,
-        background: BG2, flexShrink: 0,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      }}>
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 900, lineHeight: 1.1 }}>
-            🎸 <span style={{ color: GOLD }}>L7</span> / <span style={{ color: TEAL }}>LL</span> Root Trainer
-          </div>
-          <div style={{ fontSize: 9, color: TEXT2, letterSpacing: 1, paddingLeft: 22, marginTop: 1 }}>
-            DIATONIC CHORD ROOT PATTERNS · by Zak
-          </div>
-        </div>
-        <button onClick={() => setShowData(p => !p)} style={{
-          background: 'transparent', border: `1px solid ${BORDER}`,
-          color: TEXT2, padding: '5px 9px', borderRadius: 7,
-          cursor: 'pointer', fontSize: 10, fontWeight: 700, minHeight: 34,
-          whiteSpace: 'nowrap', fontFamily: "'Segoe UI',system-ui,sans-serif",
-          touchAction: 'manipulation',
-        }}>⬆⬇ Data</button>
-      </div>
+      <AppHeader toolKey="diatonic">
+        <button className="fw-header-btn" onClick={() => setShowData(p => !p)}>⬆⬇ Data</button>
+      </AppHeader>
 
       {/* Data panel */}
       {showData && (
@@ -2290,33 +2273,14 @@ export default function App() {
         </div>
       )}
 
-      {/* Tab bar */}
-      <div style={{
-        display: 'flex', background: BG2, borderBottom: `1px solid ${BG3}`,
-        flexShrink: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none',
-      }}>
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => { setTab(t.id); if (scrollRef.current) scrollRef.current.scrollTop = 0; }} style={{
-            flex: '0 0 auto', padding: '10px 10px',
-            background: 'transparent', border: 'none', cursor: 'pointer',
-            fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase',
-            color: tab === t.id ? GOLD : TEXT2,
-            borderBottom: `2px solid ${tab === t.id ? GOLD : 'transparent'}`,
-            minHeight: 44, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-            fontFamily: "'Segoe UI',system-ui,sans-serif", touchAction: 'manipulation',
-          }}>
-            <span style={{ fontSize: 16 }}>{t.icon}</span>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <TabBar toolKey="diatonic" tabs={TABS} active={tab} onChange={(id) => { setTab(id); if (scrollRef.current) scrollRef.current.scrollTop = 0; }} />
 
       {/* Scrollable content */}
       <div ref={scrollRef} style={{
         flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch',
         overscrollBehaviorY: 'none',
       }}>
-        <div style={{ paddingBottom: 'max(32px,env(safe-area-inset-bottom))' }}>
+        <div style={{ maxWidth: CW, margin: '0 auto', paddingBottom: 'max(32px,env(safe-area-inset-bottom))' }}>
           {tab === 'learn'    && renderLearn()}
           {tab === 'practice' && renderPractice()}
           {tab === 'quiz'     && renderQuiz()}

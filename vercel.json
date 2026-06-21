@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "diatonic-chords-trainer.vercel.app" }],
+      "destination": "https://fretworks.vercel.app/diatonic",
+      "permanent": true
+    }
+  ],
+  "rewrites": [
+    { "source": "/diatonic/(.*)", "destination": "/$1" },
+    { "source": "/diatonic", "destination": "/" }
+  ]
+}
