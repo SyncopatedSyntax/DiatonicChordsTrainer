@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { AppHeader, TabBar } from "@fretworks/design";
+import { AppHeader, TabBar, ProgressBackup } from "@fretworks/design";
 
 // ─── CONSTANTS (matching ChordTrainer exactly) ─────────────────────────────────
 const NOTE_NAMES = ['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
@@ -192,6 +192,83 @@ const SHAPE_JIMMY_T = {
 
 const ALL_SHAPES = [SHAPE_MAJOR_L7, SHAPE_MAJOR_LL, SHAPE_MINOR_L7, SHAPE_MINOR_LL, SHAPE_JIMMY_T];
 const SHAPES_BY_ID = Object.fromEntries(ALL_SHAPES.map(s => [s.id, s]));
+
+// ─── SPACED REPETITION (SM-2) ──────────────────────────────────────────────────
+// Same engine + storage pattern as Triad Trainer. A "card" is one degree of one
+// shape (shape × degree = 35 cards); the key is randomised per rep, so every
+// review is a transposition. Persisted under the `dc_` localStorage prefix.
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const todayStr = () => new Date().toISOString().slice(0, 10);
+const addDays = (s, n) => { const d = new Date(s + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+const dayDiff = (a, b) => Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000);
+const ri = (n) => Math.floor(Math.random() * n);
+const shuffle = (a) => { const r = a.slice(); for (let i = r.length - 1; i > 0; i--) { const j = ri(i + 1); [r[i], r[j]] = [r[j], r[i]]; } return r; };
+
+// SM-2: correct grows the interval (1 → 6 → ×ease); a miss resets to tomorrow.
+function updateSRS(card, correct) {
+  const ef = card?.ef ?? 2.5, reps = card?.reps ?? 0, interval = card?.interval ?? 1;
+  if (correct) {
+    const nef = Math.min(2.5, Math.max(1.3, ef + 0.1));
+    const nreps = reps + 1;
+    const nint = nreps === 1 ? 1 : nreps === 2 ? 6 : Math.round(interval * nef);
+    return { ef: nef, interval: nint, reps: nreps, nextDue: addDays(todayStr(), nint) };
+  }
+  return { ef: Math.max(1.3, ef - 0.2), interval: 1, reps: 0, nextDue: addDays(todayStr(), 1) };
+}
+const isLearned = (s) => !!s && s.reps >= 2;
+
+// Full deck: every (shape × degree) pairing.
+const SRS_DECK = ALL_SHAPES.flatMap(s => s.dots.map(dot => ({
+  cardId: `${s.id}.${dot.d}`, sid: s.id, degIdx: dot.d, isMinor: s.isMinor,
+})));
+
+// Deck scoped to the chosen shape ('mixed' = whole deck).
+const deckFor = (shapeId) => shapeId === 'mixed' ? SRS_DECK : SRS_DECK.filter(c => c.sid === shapeId);
+
+function srsStats(cards, srs) {
+  const td = todayStr(); let nw = 0, learning = 0, mastered = 0, due = 0;
+  for (const c of cards) {
+    const e = srs[c.cardId];
+    if (!e) { nw++; continue; }
+    if (e.reps >= 2) mastered++; else learning++;
+    if (e.nextDue <= td) due++;
+  }
+  return { nw, learning, mastered, due, total: cards.length };
+}
+
+// Weak-areas rows aggregated by a dimension: 'shape' (5) or 'degree' (7).
+function breakdown(cards, srs, dim) {
+  const td = todayStr(); const by = new Map();
+  for (const c of cards) {
+    const key = dim === 'shape' ? c.sid : c.degIdx;
+    let m = by.get(key);
+    if (!m) { m = { key, total: 0, nw: 0, learning: 0, mastered: 0, due: 0 }; by.set(key, m); }
+    m.total++;
+    const e = srs[c.cardId];
+    if (!e) m.nw++; else { e.reps >= 2 ? m.mastered++ : m.learning++; if (e.nextDue <= td) m.due++; }
+  }
+  const rows = [...by.values()];
+  if (dim === 'degree') rows.sort((a, b) => a.key - b.key); // Map keeps deck order for shapes
+  return rows;
+}
+
+// 7-day forecast: how many cards come due each of the next N days.
+function forecastStacked(cards, srs, days = 7) {
+  const td = todayStr();
+  const buckets = Array.from({ length: days }, () => 0);
+  let newCount = 0, later = 0, soonest = null;
+  for (const c of cards) {
+    const e = srs[c.cardId];
+    if (!e) { newCount++; continue; }
+    const d = dayDiff(td, e.nextDue), i = Math.max(0, d);
+    if (i < days) buckets[i]++; else later++;
+    if (d > 0 && (soonest == null || d < soonest)) soonest = d;
+  }
+  return { buckets, newCount, later, soonest, dueToday: buckets[0] };
+}
 
 // ─── GUITAR-FRIENDLY KEYS ─────────────────────────────────────────────────────
 // Ordered by how common they are in guitar-driven songs
@@ -1048,8 +1125,6 @@ export default function App() {
   const [shapeId, setShapeId] = useState('major_l7');
   const [keyIdx, setKeyIdx] = useState(9); // A
   const [hlDeg, setHlDeg] = useState(null);
-  const [showData, setShowData] = useState(false);
-  const [importMsg, setImportMsg] = useState('');
 
   // v3-style global style + PWA meta + canvas icon + scroll lock
   useEffect(() => {
@@ -1149,13 +1224,13 @@ export default function App() {
     };
   }, []);
 
-  // Quiz
+  // Quiz — config persists under dc_qcfg; the SRS schedule lives in dc_srs.
   const [qPhase, setQPhase] = useState('setup'); // setup | playing | done
-  const [qShapeId, setQShapeId] = useState('major_l7');
-  const [qKeyMode, setQKeyMode] = useState('random');
-  const [qFixedKey, setQFixedKey] = useState(9);
-  const [qTimeLimit, setQTimeLimit] = useState(8);
-  const [qNumQ, setQNumQ] = useState(10);
+  const [qShapeId, setQShapeId] = useState(() => store.get('dc_qcfg', {}).shapeId ?? 'mixed');
+  const [qKeyMode, setQKeyMode] = useState(() => store.get('dc_qcfg', {}).keyMode ?? 'random');
+  const [qFixedKey, setQFixedKey] = useState(() => store.get('dc_qcfg', {}).fixedKey ?? 9);
+  const [qTimeLimit, setQTimeLimit] = useState(() => store.get('dc_qcfg', {}).timeLimit ?? 8);
+  const [qNumQ, setQNumQ] = useState(() => store.get('dc_qcfg', {}).numQ ?? 10);
   const [qQuestion, setQQuestion] = useState(null);
   const [qAnswer, setQAnswer] = useState(null);
   const [qTimeLeft, setQTimeLeft] = useState(8);
@@ -1164,34 +1239,59 @@ export default function App() {
   const [qBest, setQBest] = useState(0);
   const [qIdx, setQIdx] = useState(0);
   const [qHistory, setQHistory] = useState([]);
+  const [queue, setQueue] = useState([]); // session cards: {sid, degIdx, ki}
   // Two-part answer state
   const [qPickedNum, setQPickedNum] = useState(null);   // 1-7 (scale degree number)
   const [qPickedType, setQPickedType] = useState(null); // 'maj' | 'min' | 'dim'
-  const [qHardMode, setQHardMode] = useState(false);    // hard mode: only root + target shown
+  const [qHardMode, setQHardMode] = useState(() => store.get('dc_qcfg', {}).hard ?? false);
+  const [qDim, setQDim] = useState('degree'); // weak-areas breakdown dimension
   const timerRef = useRef(null);
+  const gradedRef = useRef(false); // ensure each card grades the SRS exactly once
+
+  // SRS schedule (SM-2), keyed by cardId "shapeId.degIdx".
+  const [srs, setSrs] = useState(() => store.get('dc_srs', {}));
+  useEffect(() => { store.set('dc_srs', srs); }, [srs]);
+  const [resetState, setResetState] = useState('idle'); // idle | armed | done — Settings reset button
+  useEffect(() => {
+    store.set('dc_qcfg', { shapeId: qShapeId, keyMode: qKeyMode, fixedKey: qFixedKey, timeLimit: qTimeLimit, numQ: qNumQ, hard: qHardMode });
+  }, [qShapeId, qKeyMode, qFixedKey, qTimeLimit, qNumQ, qHardMode]);
 
   const shape = SHAPES_BY_ID[shapeId];
   const rootFret = getRootFret(keyIdx, shape.rootStrIdx);
   const isMinor = shape.isMinor;
 
   // ── Quiz logic ───────────────────────────────────────────────────────────────
-  const makeQuestion = useCallback((sid, ki) => {
-    // Mixed mode: pick a random shape each question
-    const resolvedSid = sid === 'mixed'
-      ? ALL_SHAPES[Math.floor(Math.random() * ALL_SHAPES.length)].id
-      : sid;
+  // Render one question. `degIdx` is supplied by the SRS queue; when omitted
+  // (and shape is 'mixed') a random shape+degree is chosen.
+  const makeQuestion = useCallback((sid, ki, degIdx) => {
+    const resolvedSid = sid === 'mixed' ? ALL_SHAPES[ri(ALL_SHAPES.length)].id : sid;
     const s = SHAPES_BY_ID[resolvedSid];
-    // Pick random degree (0-6, include all)
-    const pool = [0,1,2,3,4,5,6];
-    const degIdx = pool[Math.floor(Math.random() * pool.length)];
-    const dot = s.dots.find(d => d.d === degIdx);
+    const d = (degIdx == null) ? ri(7) : degIdx;
+    const dot = s.dots.find(dd => dd.d === d);
     const rf = getRootFret(ki, s.rootStrIdx);
     const targetFret = rf + dot.fo;
-    // correctNum: 1-based degree number (degIdx+1)
-    const correctNum = degIdx + 1; // 1=root, 2=second, ... 7=seventh
-    const correctType = degQuality(degIdx, s.isMinor); // 'maj'|'min'|'dim'
-    return { sid: resolvedSid, ki, degIdx, dot, targetFret, correctNum, correctType, rf };
+    const correctNum = d + 1;                          // 1=root … 7=seventh
+    const correctType = degQuality(d, s.isMinor);      // 'maj'|'min'|'dim'
+    return { sid: resolvedSid, ki, degIdx: d, dot, targetFret, correctNum, correctType, rf, cardId: `${resolvedSid}.${d}` };
   }, []);
+
+  const pickKey = useCallback(() => (
+    qKeyMode === 'random' ? ri(12)
+      : qKeyMode === 'fixed' ? qFixedKey
+      : [0,2,4,5,7,9,11][ri(7)] // common keys
+  ), [qKeyMode, qFixedKey]);
+
+  // Build a review session: due cards first, then new, then the rest (so a
+  // session is never empty), capped at the question count, each a random key.
+  const buildQueue = useCallback(() => {
+    const td = todayStr();
+    const deck = deckFor(qShapeId);
+    const due = deck.filter(c => srs[c.cardId] && srs[c.cardId].nextDue <= td);
+    const fresh = deck.filter(c => !srs[c.cardId]);
+    const rest = deck.filter(c => srs[c.cardId] && srs[c.cardId].nextDue > td);
+    const ordered = [...shuffle(due), ...shuffle(fresh), ...shuffle(rest)];
+    return ordered.slice(0, qNumQ).map(c => ({ sid: c.sid, degIdx: c.degIdx, ki: pickKey() }));
+  }, [qShapeId, qNumQ, srs, pickKey]);
 
   const quitQuiz = useCallback(() => {
     clearInterval(timerRef.current);
@@ -1202,30 +1302,25 @@ export default function App() {
   }, []);
 
   const startQuiz = useCallback(() => {
-    const ki = qKeyMode === 'random' ? Math.floor(Math.random() * 12)
-      : qKeyMode === 'fixed' ? qFixedKey
-      : [0,2,4,5,7,9,11][Math.floor(Math.random() * 7)]; // common keys
-    const q = makeQuestion(qShapeId, ki);
-    setQQuestion(q); setQAnswer(null);
-    setQPickedNum(null); setQPickedType(null);
+    const q = buildQueue();
+    if (!q.length) return;
+    setQueue(q); setQIdx(0); gradedRef.current = false;
+    setQQuestion(makeQuestion(q[0].sid, q[0].ki, q[0].degIdx));
+    setQAnswer(null); setQPickedNum(null); setQPickedType(null);
     setQTimeLeft(qTimeLimit); setQScore(0); setQStreak(0);
-    setQBest(0); setQIdx(0); setQHistory([]);
+    setQBest(0); setQHistory([]);
     setQPhase('playing');
-  }, [qShapeId, qKeyMode, qFixedKey, qTimeLimit, makeQuestion]);
+  }, [buildQueue, makeQuestion, qTimeLimit]);
 
-  const advanceQuiz = useCallback((wasCorrect) => {
+  const advanceQuiz = useCallback(() => {
     const next = qIdx + 1;
-    if (next >= qNumQ) { setQPhase('done'); return; }
-    setQIdx(next);
-    const ki = qKeyMode === 'random' ? Math.floor(Math.random() * 12)
-      : qKeyMode === 'fixed' ? qFixedKey
-      : [0,2,4,5,7,9,11][Math.floor(Math.random() * 7)];
-    setQQuestion(makeQuestion(qShapeId, ki));
-    setQAnswer(null);
-    setQPickedNum(null);
-    setQPickedType(null);
+    if (next >= queue.length) { setQPhase('done'); return; }
+    setQIdx(next); gradedRef.current = false;
+    const c = queue[next];
+    setQQuestion(makeQuestion(c.sid, c.ki, c.degIdx));
+    setQAnswer(null); setQPickedNum(null); setQPickedType(null);
     setQTimeLeft(qTimeLimit);
-  }, [qIdx, qNumQ, qShapeId, qKeyMode, qFixedKey, qTimeLimit, makeQuestion]);
+  }, [qIdx, queue, makeQuestion, qTimeLimit]);
 
   // Timer effect
   useEffect(() => {
@@ -1235,10 +1330,14 @@ export default function App() {
     timerRef.current = setInterval(() => {
       setQTimeLeft(t => {
         if (t <= 0.1) {
-          clearInterval(timerRef.current);
-          setQAnswer(-1); // timeout
-          setQStreak(0);
-          setQHistory(h => [...h, { correct: false }]);
+          if (!gradedRef.current) { // guard: StrictMode double-invokes updaters in dev
+            gradedRef.current = true;
+            clearInterval(timerRef.current);
+            setQAnswer(-1); // timeout
+            setQStreak(0);
+            setQHistory(h => [...h, { correct: false }]);
+            if (qQuestion) setSrs(prev => ({ ...prev, [qQuestion.cardId]: updateSRS(prev[qQuestion.cardId], false) }));
+          }
           // No auto-advance — user clicks Next
           return 0;
         }
@@ -1246,10 +1345,12 @@ export default function App() {
       });
     }, 100);
     return () => clearInterval(timerRef.current);
-  }, [qPhase, qAnswer, advanceQuiz]);
+  }, [qPhase, qAnswer, advanceQuiz, qQuestion]);
 
   const handleSubmit = () => {
     if (qAnswer !== null || !qQuestion || qPickedNum === null || qPickedType === null) return;
+    if (gradedRef.current) return; // already graded (e.g. timed out at the buzzer)
+    gradedRef.current = true;
     clearInterval(timerRef.current);
     const correctNum = qQuestion.correctNum;
     const correctType = qQuestion.correctType;
@@ -1257,6 +1358,7 @@ export default function App() {
     const typeCorrect = qPickedType === correctType;
     const correct = numCorrect && typeCorrect;
     setQAnswer({ pickedNum: qPickedNum, pickedType: qPickedType, correct, numCorrect, typeCorrect });
+    setSrs(prev => ({ ...prev, [qQuestion.cardId]: updateSRS(prev[qQuestion.cardId], correct) }));
     if (correct) {
       setQScore(s => s + 1);
       setQStreak(s => { const ns = s + 1; setQBest(b => Math.max(b, ns)); return ns; });
@@ -1453,13 +1555,23 @@ export default function App() {
 
   // ── Quiz tab ─────────────────────────────────────────────────────────────────
   const renderQuiz = () => {
-    if (qPhase === 'setup') return (
+    if (qPhase === 'setup') {
+      const deck = deckFor(qShapeId);
+      const stats = srsStats(deck, srs);
+      const rows = breakdown(deck, srs, qDim);
+      const fc = forecastStacked(deck, srs);
+      const maxFc = Math.max(1, ...fc.buckets);
+      const fcDays = ['Today', '+1', '+2', '+3', '+4', '+5', '+6'];
+      const startLabel = stats.due > 0 ? `Review ${stats.due} due 🎸`
+        : stats.nw > 0 ? `Learn ${Math.min(qNumQ, stats.nw)} new 🎸`
+        : 'Practice again 🎸';
+      return (
       <div style={{ padding: '14px', maxWidth: 440, margin: '0 auto' }}>
         <div style={{ textAlign: 'center', padding: '14px 0 12px' }}>
           <div style={{ fontSize: 30, marginBottom: 5 }}>⚡</div>
           <div style={{ fontSize: 17, fontWeight: 900, color: GOLD }}>Root Note Quiz</div>
           <div style={{ fontSize: 11, color: TEXT2, marginTop: 4 }}>
-            A dot lights up on the fretboard — name the degree. Beat the clock.
+            A dot lights up on the fretboard — name the degree. Spaced repetition tracks what you know.
           </div>
         </div>
 
@@ -1563,12 +1675,88 @@ export default function App() {
           background: GOLD, color: '#111', border: 'none', borderRadius: 12,
           fontSize: 15, fontWeight: 900, cursor: 'pointer', letterSpacing: 1,
           fontFamily: "'Segoe UI',system-ui,sans-serif",
-        }}>Start Quiz 🎸</button>
+        }}>{startLabel}</button>
+
+        {/* ── Progress (spaced repetition) ─────────────────────────────── */}
+        <div style={{ marginTop: 18, background: BG2, border: `1px solid ${BORDER}`, borderRadius: 12, padding: '11px 12px' }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 9 }}>
+            {[
+              { n: stats.nw, label: 'New', c: TEXT2 },
+              { n: stats.learning, label: 'Learning', c: '#74b9ff' },
+              { n: stats.mastered, label: 'Mastered', c: GREEN },
+              { n: stats.due, label: 'Due', c: GOLD },
+            ].map(({ n, label, c }) => (
+              <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: TEXT1, fontWeight: 700 }}>
+                <i style={{ width: 8, height: 8, borderRadius: 2, background: c, display: 'inline-block' }} />{n} {label}
+              </span>
+            ))}
+          </div>
+          <div style={{ background: BG3, borderRadius: 3, height: 5, marginBottom: 13, overflow: 'hidden' }}>
+            <div style={{ width: `${stats.total ? (stats.mastered / stats.total) * 100 : 0}%`, height: 5, background: GREEN, borderRadius: 3, transition: 'width .3s' }} />
+          </div>
+
+          {/* Weak areas */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
+            <span style={{ fontSize: 10, color: TEXT2, letterSpacing: 2, textTransform: 'uppercase' }}>Weak areas</span>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {[['degree', 'Degree'], ['shape', 'Shape']].map(([id, label]) => (
+                <button key={id} onClick={() => setQDim(id)} style={{
+                  padding: '2px 8px', borderRadius: 6, cursor: 'pointer',
+                  border: `1px solid ${qDim === id ? GOLD : BORDER}`,
+                  background: qDim === id ? GOLD + '22' : 'transparent',
+                  color: qDim === id ? GOLD : TEXT2, fontSize: 10, fontWeight: 700,
+                  fontFamily: "'Segoe UI',system-ui,sans-serif",
+                }}>{label}</button>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 13 }}>
+            {rows.map(row => {
+              const label = qDim === 'shape' ? SHAPES_BY_ID[row.key].shortName : `Degree ${row.key + 1}`;
+              return (
+                <div key={row.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 64, fontSize: 10, color: TEXT2, flexShrink: 0 }}>{label}</div>
+                  <div style={{ flex: 1, display: 'flex', height: 8, borderRadius: 4, overflow: 'hidden', background: BG3 }}>
+                    {row.mastered > 0 && <span style={{ flex: row.mastered, background: GREEN }} />}
+                    {row.learning > 0 && <span style={{ flex: row.learning, background: '#74b9ff' }} />}
+                    {row.nw > 0 && <span style={{ flex: row.nw, background: '#36344a' }} />}
+                  </div>
+                  <div style={{ width: 46, textAlign: 'right', fontSize: 10, color: TEXT2, flexShrink: 0 }}>
+                    {row.mastered}/{row.total}{row.due > 0 ? ` ·${row.due}` : ''}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Forecast */}
+          <div style={{ fontSize: 10, color: TEXT2, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>Coming up · 7 days</div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4 }}>
+            {fc.buckets.map((n, i) => {
+              const h = n ? Math.max(6, Math.round((n / maxFc) * 34)) : 2;
+              return (
+                <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                  <div style={{ fontSize: 9, color: TEXT2, height: 11 }}>{n || ''}</div>
+                  <div style={{ width: '100%', height: h, background: n ? GOLD : BG3, borderRadius: 2 }} />
+                  <div style={{ fontSize: 8, color: TEXT2 }}>{fcDays[i]}</div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ fontSize: 10, color: TEXT2, marginTop: 8 }}>
+            {fc.dueToday > 0 ? `${fc.dueToday} due now`
+              : fc.soonest != null ? `Next review in ${fc.soonest} day${fc.soonest > 1 ? 's' : ''}`
+              : 'Nothing scheduled yet'}
+            {fc.newCount > 0 ? ` · ${fc.newCount} new ready` : ''}
+          </div>
+        </div>
       </div>
-    );
+      );
+    }
 
     if (qPhase === 'done') {
-      const pct = Math.round(qScore / qNumQ * 100);
+      const pct = queue.length ? Math.round(qScore / queue.length * 100) : 0;
+      const fc = forecastStacked(deckFor(qShapeId), srs);
       return (
         <div style={{ padding: '28px 14px', maxWidth: 380, margin: '0 auto', textAlign: 'center' }}>
           <div style={{ fontSize: 50, marginBottom: 5 }}>
@@ -1578,10 +1766,16 @@ export default function App() {
             {pct === 100 ? 'Flawless!' : pct >= 80 ? 'Sharp ears!' : pct >= 60 ? 'Getting there!' : 'Keep practising!'}
           </div>
           <div style={{ fontSize: 54, fontWeight: 900, color: GOLD, lineHeight: 1, marginBottom: 2 }}>
-            {qScore}/{qNumQ}
+            {qScore}/{queue.length}
           </div>
           <div style={{ color: TEXT2, fontSize: 12, marginBottom: 6 }}>
             {pct}% · best streak: {qBest}
+          </div>
+          <div style={{ color: TEXT2, fontSize: 11, marginBottom: 6 }}>
+            {fc.dueToday > 0 ? `${fc.dueToday} due now`
+              : fc.soonest != null ? `Next review in ${fc.soonest} day${fc.soonest > 1 ? 's' : ''}`
+              : 'No reviews scheduled yet'}
+            {fc.newCount > 0 ? ` · ${fc.newCount} new left` : ''}
           </div>
 
           {/* History dots */}
@@ -1632,7 +1826,7 @@ export default function App() {
         {/* Score bar */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 11, color: TEXT2 }}>Q{qIdx + 1}/{qNumQ}</span>
+            <span style={{ fontSize: 11, color: TEXT2 }}>Q{qIdx + 1}/{queue.length}</span>
             {qHardMode && (
               <span style={{
                 fontSize: 9, fontWeight: 700, color: RED,
@@ -1661,7 +1855,7 @@ export default function App() {
           <div style={{
             background: `linear-gradient(90deg,${RED},${GOLD})`,
             height: 3, borderRadius: 3,
-            width: `${(qIdx / qNumQ) * 100}%`, transition: 'width .3s',
+            width: `${(qIdx / queue.length) * 100}%`, transition: 'width .3s',
           }} />
         </div>
 
@@ -1811,7 +2005,7 @@ export default function App() {
               </>
             )}
             <button
-              onClick={() => advanceQuiz(isCorrect)}
+              onClick={() => advanceQuiz()}
               style={{
                 width: '100%', padding: '11px',
                 background: GOLD, color: '#111',
@@ -1819,7 +2013,7 @@ export default function App() {
                 fontSize: 13, fontWeight: 900, cursor: 'pointer',
                 fontFamily: "'Segoe UI',system-ui,sans-serif",
               }}>
-              {qIdx + 1 >= qNumQ ? 'See results →' : 'Next →'}
+              {qIdx + 1 >= queue.length ? 'See results →' : 'Next →'}
             </button>
           </div>
         )}
@@ -2200,16 +2394,65 @@ export default function App() {
           ))}
         </div>
       ))}
-      <DebugPanel />
     </div>
   );
 
+  // ── Settings tab ──────────────────────────────────────────────────────────────
+  const renderSettings = () => {
+    // Reset only the SRS schedule (dc_srs) — quiz config is kept. Two-tap confirm.
+    const onReset = () => {
+      if (resetState !== 'armed') {
+        setResetState('armed');
+        setTimeout(() => setResetState(s => (s === 'armed' ? 'idle' : s)), 4000);
+        return;
+      }
+      setSrs({});
+      setResetState('done');
+      setTimeout(() => setResetState(s => (s === 'done' ? 'idle' : s)), 2500);
+    };
+    return (
+    <div style={{ padding: '14px', maxWidth: 440, margin: '0 auto' }}>
+      <div style={{ fontSize: 10, color: TEXT2, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 }}>Progress backup</div>
+      <div style={{ background: BG2, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 12, marginBottom: 6 }}>
+        <div style={{ fontSize: 11, color: TEXT1, marginBottom: 10, lineHeight: 1.5 }}>
+          Save your spaced-repetition progress to a file, or restore it on another device.
+        </div>
+        <ProgressBackup toolKey="diatonic" prefix="dc_" />
+      </div>
+      <div style={{ fontSize: 9, color: TEXT2, marginBottom: 18 }}>
+        Progress lives in this browser (localStorage) — export before clearing site data.
+      </div>
+
+      <div style={{ fontSize: 10, color: TEXT2, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 }}>Reset</div>
+      <div style={{ background: BG2, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 12, marginBottom: 18 }}>
+        <div style={{ fontSize: 11, color: TEXT1, marginBottom: 10, lineHeight: 1.5 }}>
+          Clear your spaced-repetition schedule — every card goes back to “new”. Your quiz settings are kept.
+        </div>
+        <button onClick={onReset} style={{
+          background: resetState === 'done' ? GREEN + '22' : RED + '18',
+          color: resetState === 'done' ? GREEN : RED,
+          border: `1px solid ${(resetState === 'done' ? GREEN : RED)}66`,
+          borderRadius: 8, padding: '9px 14px', fontSize: 12, fontWeight: 700,
+          cursor: 'pointer', minHeight: 36, touchAction: 'manipulation',
+          fontFamily: "'Segoe UI',system-ui,sans-serif",
+        }}>
+          {resetState === 'armed' ? 'Tap again to confirm' : resetState === 'done' ? '✓ Progress reset' : 'Reset progress'}
+        </button>
+      </div>
+
+      <div style={{ fontSize: 10, color: TEXT2, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 }}>Diagnostics</div>
+      <DebugPanel />
+    </div>
+    );
+  };
+
   // ── Return ────────────────────────────────────────────────────────────────────
   const TABS = [
+    { id: 'guide',    icon: '📖', label: 'Guide'    },
     { id: 'learn',    icon: '🎸', label: 'Learn'    },
     { id: 'practice', icon: '🎼', label: 'Practice' },
     { id: 'quiz',     icon: '🎯', label: 'Quiz'     },
-    { id: 'guide',    icon: '📖', label: 'Guide'    },
+    { id: 'settings', icon: '⚙️', label: 'Settings' },
   ];
 
   const CW = 600; // centered content max-width (matches AlteredTrainer)
@@ -2224,55 +2467,7 @@ export default function App() {
       fontFamily: "var(--font-body)",
       WebkitFontSmoothing: 'antialiased',
     }}>
-      <AppHeader toolKey="diatonic">
-        <button className="fw-header-btn" onClick={() => setShowData(p => !p)}>⬆⬇ Data</button>
-      </AppHeader>
-
-      {/* Data panel */}
-      {showData && (
-        <div style={{
-          background: BG2, borderBottom: `1px solid ${BG3}`,
-          padding: '9px 14px', display: 'flex', alignItems: 'center',
-          gap: 8, flexWrap: 'wrap', flexShrink: 0,
-        }}>
-          <span style={{ fontSize: 10, color: TEXT2 }}>Progress backup:</span>
-          <button onClick={() => {
-            const data = { v: 1, exported: new Date().toISOString() };
-            const a = document.createElement('a');
-            a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(data, null, 2));
-            a.download = `l7ll-trainer-${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-          }} style={{
-            background: PURPLE + '22', color: PURPLE,
-            border: `1px solid ${PURPLE}44`, padding: '5px 12px',
-            borderRadius: 7, cursor: 'pointer', fontSize: 10, fontWeight: 700, minHeight: 34,
-            touchAction: 'manipulation',
-          }}>Export ↓</button>
-          <label style={{
-            background: TEAL + '22', color: TEAL,
-            border: `1px solid ${TEAL}44`, padding: '5px 12px',
-            borderRadius: 7, cursor: 'pointer', fontSize: 10, fontWeight: 700,
-            minHeight: 34, display: 'flex', alignItems: 'center', touchAction: 'manipulation',
-          }}>
-            Import ↑
-            <input type="file" accept=".json" style={{ display: 'none' }} onChange={e => {
-              const file = e.target.files[0]; if (!file) return;
-              const reader = new FileReader();
-              reader.onload = ev => {
-                try { JSON.parse(ev.target.result); setImportMsg('✓ Imported!'); setTimeout(() => setImportMsg(''), 3000); }
-                catch { setImportMsg('✗ Invalid file'); }
-              };
-              reader.readAsText(file); e.target.value = '';
-            }} />
-          </label>
-          {importMsg && (
-            <span style={{ fontSize: 10, fontWeight: 700, color: importMsg.startsWith('✓') ? GREEN : RED }}>
-              {importMsg}
-            </span>
-          )}
-          <span style={{ fontSize: 9, color: TEXT2, marginLeft: 'auto' }}>by Zak</span>
-        </div>
-      )}
+      <AppHeader toolKey="diatonic" />
 
       <TabBar toolKey="diatonic" tabs={TABS} active={tab} onChange={(id) => { setTab(id); if (scrollRef.current) scrollRef.current.scrollTop = 0; }} />
 
@@ -2286,6 +2481,7 @@ export default function App() {
           {tab === 'practice' && renderPractice()}
           {tab === 'quiz'     && renderQuiz()}
           {tab === 'guide'    && renderGuide()}
+          {tab === 'settings' && renderSettings()}
         </div>
       </div>
 

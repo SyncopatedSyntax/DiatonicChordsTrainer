@@ -50,24 +50,40 @@ recommended shapes and a short teaching tip — this is what drives the
 Practice tab's "feel" picker.
 
 ## Tabs
+Order (left→right): **Guide · Learn · Practice · Quiz · Settings.**
+- **Guide** 📖 — reference text: all 5 shapes explained, quality rules, and
+  when to reach for L7 vs LL. (Leftmost.)
 - **Learn** 🎸 — interactive fretboard explorer: choose key + shape, tap dots
   to highlight chords, with a chord-grid legend showing all 7 chords and
   their fret positions.
 - **Practice** 🎼 — pick a progression "feel" (genre), get a random progression
   from `PRACTICE_PROGS` with its recommended shape(s) and teaching tip.
-- **Quiz** 🎯 — timed single-choice quiz, configurable (shape, key mode:
-  random/fixed/common, time limit, question count, hard mode). Answers are
-  **two-part**: pick the degree number (1–7), then the chord quality
-  (maj/min/dim). **Hard mode** strips every dot except the root and the
-  target, forcing pure shape/fret memorisation. Tracks score + streak +
-  best-streak for the session only — no cross-session history.
-- **Guide** 📖 — reference text: all 5 shapes explained, quality rules, and
-  when to reach for L7 vs LL.
+- **Quiz** 🎯 — **spaced-repetition (SM-2) drill.** A dot lights up; answer is
+  **two-part** — degree number (1–7), then quality (maj/min/dim). Auto-graded;
+  a correct answer needs both parts right. Cards are scheduled and reviewed:
+  config controls first, then the start button, then the progress panel at the
+  bottom — New/Learning/Mastered/Due chips, a weak-areas heatmap (toggle by
+  **degree** or **shape**), and a 7-day forecast. Config (shape/key-mode/time/
+  count/hard mode) applies to the review session. **Hard mode** strips every
+  dot except root + target. See *Spaced repetition*.
+- **Settings** ⚙️ — progress backup (export/import), a **Reset progress**
+  button (two-tap confirm; clears `dc_srs` only, keeps quiz config), and a
+  diagnostics/debug panel. (Rightmost. Replaced the old header "⬆⬇ Data" button.)
+
+## Spaced repetition
+Same SM-2 engine + storage pattern as Triad Trainer, in `App.jsx`. A **card is
+one degree of one shape** (`cardId = "shapeId.degIdx"`, 5 shapes × 7 degrees =
+35 cards); the key is randomised per rep, so every review transposes. `store`
+helper + `updateSRS(card, correct)` (correct grows the interval 1→6→×ease; a
+miss resets to tomorrow); `isLearned` = `reps ≥ 2`. Progress widgets on the
+Quiz setup come from `srsStats` / `breakdown` / `forecastStacked`.
+localStorage (`dc_` prefix): **`dc_srs`** (schedule by cardId), **`dc_qcfg`**
+(quiz config). Export/import via the shared `ProgressBackup` in the **Settings
+tab** (`prefix="dc_"`).
 
 ## Not built yet
-- No spaced repetition — this is an explorer + timed-quiz tool, not a drill
-  scheduler (unlike Chord Trainer / Triad Trainer). If that changes, follow
-  the toolbox's SM-2 pattern and a `dc_*` localStorage key prefix.
+- No multi-level roadmap (unlike Triad's `LEVELS`/`STAGES`) — the 35-card deck
+  is scoped only by the shape picker. A level ladder is a possible fast-follow.
 - No `verify.mjs` for the shape/quality data (see Theory above).
 
 ## Before shipping any change
