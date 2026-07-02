@@ -27,8 +27,13 @@ The 5 shapes are hardcoded objects: `SHAPE_MAJOR_L7`, `SHAPE_MAJOR_LL`,
 `{ d, si, fo }` — degree index (`d`: 0–6), string index (`si`: 0 = low E,
 1 = A, …), fret offset from the root (`fo`). Chord qualities come from
 `MAJ_QUALITY`/`MIN_QUALITY` lookup tables keyed by diatonic degree, with
-`DIATONIC_ST` (semitone offsets) and `OPEN_MIDI` used to compute each
-shape's actual root fret for a given key.
+`OPEN_MIDI` used to compute each shape's actual root fret for a given key.
+Chord **note names** come from `degreeNote(keyIdx, degIdx, isMinor)`, which
+picks the right semitone table — `DIATONIC_ST` (major `[0,2,4,5,7,9,11]`) or
+`MIN_ST` (natural minor `[0,2,3,5,7,8,10]`). Minor shapes **must** use
+`MIN_ST`: the major table put the b3/b6/b7 roots a half-step too high (e.g.
+A-minor bVII printed "Ab" where the dot is really G). Verified by re-deriving
+every dot's pitch from `OPEN_MIDI` + fret across all shapes × keys.
 
 **There's no `verify.mjs`** — shapes are hand-verified against diagrams via
 inline code comments, not independently re-derived. Per the toolbox's

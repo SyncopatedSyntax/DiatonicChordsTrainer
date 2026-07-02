@@ -469,7 +469,8 @@ const MAJ_LABELS = ['1','2m','3m','4','5','6m','7°'];
 const MIN_LABELS = ['1m','2°','b3','4m','5m','b6','b7'];
 const MAJ_QUALITY = ['maj','min','min','maj','maj','min','dim'];
 const MIN_QUALITY = ['min','dim','maj','min','min','maj','maj'];
-const DIATONIC_ST  = [0,2,4,5,7,9,11]; // semitones from root for each degree
+const DIATONIC_ST  = [0,2,4,5,7,9,11]; // major-scale semitones from root for each degree
+const MIN_ST       = [0,2,3,5,7,8,10]; // natural-minor semitones (b3, b6, b7)
 
 function degLabel(d, isMinor) { return isMinor ? MIN_LABELS[d] : MAJ_LABELS[d]; }
 function degQuality(d, isMinor) { return isMinor ? MIN_QUALITY[d] : MAJ_QUALITY[d]; }
@@ -491,13 +492,16 @@ function getRootFret(noteIdx, strIdx) {
   return fret;
 }
 
-// Get the actual note name for a degree in a given key
-function degreeNote(keyIdx, degIdx) {
-  return NOTE_NAMES[(keyIdx + DIATONIC_ST[degIdx]) % 12];
+// Get the actual note name for a degree in a given key. Minor shapes must use
+// natural-minor spacing (b3/b6/b7) — using the major table put those roots a
+// half-step too high (e.g. A-minor bVII showed "Ab" where the dot is really G).
+function degreeNote(keyIdx, degIdx, isMinor) {
+  const st = isMinor ? MIN_ST : DIATONIC_ST;
+  return NOTE_NAMES[(keyIdx + st[degIdx]) % 12];
 }
 
 function chordName(keyIdx, degIdx, isMinor) {
-  const note = degreeNote(keyIdx, degIdx);
+  const note = degreeNote(keyIdx, degIdx, isMinor);
   const q = degQuality(degIdx, isMinor);
   if (q === 'maj') return note;
   if (q === 'min') return note + 'm';
@@ -1958,9 +1962,7 @@ export default function App() {
               {/* Chord names in selected key */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
                 {prog.degrees.map((c, i) => {
-                  const noteIdx = (practiceKeyIdx + DIATONIC_ST[c.d]) % 12;
-                  const q = prog.isMinor ? MIN_QUALITY[c.d] : MAJ_QUALITY[c.d];
-                  const name = NOTE_NAMES[noteIdx] + (q === 'min' ? 'm' : q === 'dim' ? '°' : '');
+                  const name = chordName(practiceKeyIdx, c.d, prog.isMinor);
                   // Apply alteration from rn label if present
                   const rn = c.rn;
                   const isAltered = rn.includes('7') || rn.includes('b9') || rn.includes('#');
