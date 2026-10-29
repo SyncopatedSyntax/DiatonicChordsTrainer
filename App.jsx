@@ -21,14 +21,12 @@ const RED = '#ff6b6b';
 const TEAL = '#4ecdc4';
 const PURPLE = '#a29bfe';
 const GREEN = '#00b894';
-const CORAL = '#e17055';
 const PINK = '#fd79a8';
 
 // Shape group colors — matching the diagram's red/teal
-const COLOR_MAJ = '#ff6b6b';   // red group (I/IV/V in major; iv/v/i in minor)
-const COLOR_MIN = '#4ecdc4';   // teal group (ii/iii/vi in major; bVI/bVII/bIII in minor)
+const COLOR_MAJ = '#ff6b6b';   // red group: major chords (I/IV/V in major; bIII/bVI/bVII in minor)
+const COLOR_MIN = '#4ecdc4';   // teal group: minor chords (ii/iii/vi in major; i/iv/v in minor)
 const COLOR_DIM = '#a29bfe';   // dim chord
-const COLOR_ROOT = '#ffd93d';  // root highlight
 
 // ─── SHAPE DEFINITIONS ─────────────────────────────────────────────────────────
 // Verified against diagram: str6(idx=0)=low-E, str5(idx=1)=A string
@@ -97,8 +95,8 @@ const SHAPE_MAJOR_LL = {
 // str5: b6@R-4, b7@R-2, 1m@R+0
 // MIN_LABELS = ['1m','2°','b3','4m','5m','b6','b7']  idx: 0,1,2,3,4,5,6
 // d:1 = '2°' (dim), d:6 = 'b7' (maj)
-// Red group (minor chords): 1m(d=0), 4m(d=3), 5m(d=4)
-// Teal group (major chords): b3(d=2), b6(d=5), b7(d=6)
+// Red group (major chords): b3(d=2), b6(d=5), b7(d=6)
+// Teal group (minor chords): 1m(d=0), 4m(d=3), 5m(d=4)
 // Dim: 2°(d=1)
 const SHAPE_MINOR_L7 = {
   id: 'minor_l7',
@@ -223,7 +221,6 @@ function updateSRS(card, correct) {
   }
   return { ef: Math.max(1.3, ef - 0.2), interval: 1, reps: 0, nextDue: addDays(todayStr(), 1) };
 }
-const isLearned = (s) => !!s && s.reps >= 2;
 
 // Full deck: every (shape × degree) pairing.
 const SRS_DECK = ALL_SHAPES.flatMap(s => s.dots.map(dot => ({
@@ -275,11 +272,6 @@ function forecastStacked(cards, srs, days = 7) {
   return { buckets, newCount, later, soonest, dueToday: buckets[0] };
 }
 
-// ─── GUITAR-FRIENDLY KEYS ─────────────────────────────────────────────────────
-// Ordered by how common they are in guitar-driven songs
-const GUITAR_KEYS = [7,9,4,2,0,5,11,4]; // G,A,E,D,C,F,B — dedupe below
-const GUITAR_KEY_IDXS = [7,9,4,2,0,5,11,3]; // G=7,A=9,E=4,D=2,C=0,F=5,B=11,Eb=3
-
 // ─── PRACTICE PROGRESSIONS ────────────────────────────────────────────────────
 // degrees: array of {rn: Roman numeral string, degIdx: 0-6 diatonic index}
 // degIdx is the diatonic scale degree (0=I/i, 1=ii/ii°, 2=iii/bIII, 3=IV/iv, 4=V/v, 5=vi/bVI, 6=vii°/bVII)
@@ -307,7 +299,7 @@ const PRACTICE_PROGS = [
       {id:'major_l7', reason:'All 4 roots visible in one shape'},
       {id:'major_ll', reason:'VI and ii cluster on the left side of the LL shape'},
     ],
-    tip: 'VI7 shares the same root fret as vi — treat it as a coloured vi. In the L7 shape, notice how VI and ii are both on str6 close together.',
+    tip: 'VI7 shares the same root fret as vi — treat it as a coloured vi. In the LL shape, VI and ii sit at the same fret, three below the root: VI on str6, ii on str5.',
   },
   {
     id: 'jazz_turnaround', title: 'Jazz Turnaround · I–VI–ii–V', feel: 'Jazz', feelGroup: 'Jazz',
@@ -315,7 +307,7 @@ const PRACTICE_PROGS = [
     desc: 'Cmaj7–A7–Dm7–G7. Cycle-of-4ths with secondary dominant.',
     degrees: [{rn:'I',d:0},{rn:'VI7',d:5},{rn:'ii',d:1},{rn:'V',d:4}],
     shapes: [
-      {id:'major_ll', reason:'I, VI, ii, V all sit within 3 frets in the LL shape'},
+      {id:'major_ll', reason:'I, VI, ii, V all sit within a five-fret stretch in the LL shape'},
       {id:'major_l7', reason:'Classic view: I on str6, all others visible nearby'},
     ],
     tip: 'In the LL shape, I and VI are on str6 at root and −3fr. Then ii and V jump to str5. The whole turnaround fits in your hand without shifting.',
@@ -329,7 +321,7 @@ const PRACTICE_PROGS = [
       {id:'major_l7', reason:'ii on str6, V/IV on str5 — all visible in one shape'},
       {id:'major_ll', reason:'IV and I share the same fret on str5/str6 in LL'},
     ],
-    tip: 'Notice that IV and I are the same fret on different strings in the L7 shape. The ii–V–I–IV movement cycles through all three fret columns of the shape.',
+    tip: 'Notice that IV and I are the same fret on different strings in the L7 shape. The ii–V–I–IV movement swings between two fret columns: ii and V share one, I and IV the other.',
   },
   {
     id: 'drop2_iivi', title: 'Drop 2 · ii–V–I', feel: 'Jazz Comping', feelGroup: 'Jazz',
@@ -394,7 +386,7 @@ const PRACTICE_PROGS = [
       {id:'minor_l7', reason:'i on str5, iv and V on str6 adjacent — compact minor shape'},
       {id:'minor_ll', reason:'i at root, iv directly above on str5, V one step right'},
     ],
-    tip: 'In Minor L7, root (i) is on str5. iv is directly below on str6 same fret. V is +2fr on str6. Feel the difference from major blues — the root string flips.',
+    tip: 'In Minor L7, root (i) is on str5. V is directly below it on str6, same fret, and iv is two frets back from V. Feel the difference from major blues — the root string flips.',
   },
   // ── POP & ROCK ───────────────────────────────────────────────────────────
   {
@@ -403,10 +395,10 @@ const PRACTICE_PROGS = [
     desc: 'The axis progression. Underlies hundreds of pop hits.',
     degrees: [{rn:'I',d:0},{rn:'V',d:4},{rn:'vi',d:5},{rn:'IV',d:3}],
     shapes: [
-      {id:'major_l7', reason:'All 4 roots visible — I/vi on str6, V/IV on str5'},
+      {id:'major_l7', reason:'All 4 roots visible — I on str6; IV, V and vi on str5'},
       {id:'major_ll', reason:'vi sits left of root in LL — great for seeing I→vi movement'},
     ],
-    tip: 'In the L7 shape, I and vi are both on str6. V and IV are on str5. Practice jumping between the two strings to feel the pop loop in your hands.',
+    tip: 'In the LL shape, I and vi are both on str6, and IV and V are on str5. Practice jumping between the two strings to feel the pop loop in your hands.',
   },
   {
     id: 'i_iv_v', title: 'I–IV–V', feel: 'Folk/Country', feelGroup: 'Rock & Pop',
@@ -415,7 +407,7 @@ const PRACTICE_PROGS = [
     degrees: [{rn:'I',d:0},{rn:'IV',d:3},{rn:'V',d:4}],
     shapes: [
       {id:'major_l7', reason:'The defining shape for I-IV-V — I on str6, IV/V on str5'},
-      {id:'jimmy_t', reason:'IV and V are on str6 flanking the root on str5'},
+      {id:'jimmy_t', reason:'IV and V are on str6: V directly below the root on str5, IV two frets back'},
     ],
     tip: 'The L7 "7 shape" IS the I–IV–V shape. The corner of the 7 is IV and V. Once you can find I anywhere on str6, you automatically know IV and V.',
   },
@@ -427,7 +419,7 @@ const PRACTICE_PROGS = [
     shapes: [
       {id:'major_l7', reason:'I on str6, IV on str5 same fret; bVII is 7°position −1fr'},
     ],
-    tip: 'bVII sits at the 7° position (one fret below I on str6). In the L7 shape it is already shown as the dim dot — just use it as a major chord instead. I→bVII→IV feels like a backwards walk.',
+    tip: 'bVII sits two frets below I on str6 — one fret below the 7° dot, just outside the L7 shape (the dashed dot). Play a major chord there. I→bVII→IV feels like a backwards walk.',
   },
   {
     id: 'i_iii_iv_v', title: 'I–iii–IV–V', feel: 'Pop/Soul', feelGroup: 'Rock & Pop',
@@ -437,7 +429,7 @@ const PRACTICE_PROGS = [
     shapes: [
       {id:'major_l7', reason:'I on str6, iii on str6 +4fr, IV and V on str5'},
     ],
-    tip: 'iii shares a fret column with IV in the L7 shape — iii is on str6 where IV would be on str5. Practice the stepwise root movement: I → iii (+4) → IV (jump to str5) → V (+2).',
+    tip: 'iii shares a fret column with vi in the L7 shape — iii on str6, vi on str5, four frets up. Practice the stepwise root movement: I → iii (+4) → IV (jump to str5) → V (+2).',
   },
   {
     id: 'i_vi_iv_v', title: 'I–vi–IV–V', feel: 'Pop/50s', feelGroup: 'Rock & Pop',
@@ -445,7 +437,7 @@ const PRACTICE_PROGS = [
     desc: 'The 50s doo-wop progression. Timeless.',
     degrees: [{rn:'I',d:0},{rn:'vi',d:5},{rn:'IV',d:3},{rn:'V',d:4}],
     shapes: [
-      {id:'major_l7', reason:'I and vi on str6, IV and V on str5 — one shape covers all'},
+      {id:'major_l7', reason:'I on str6; vi, IV and V on str5 — one shape covers all'},
       {id:'major_ll', reason:'vi sits at −3fr from root — LL groups I/vi naturally'},
     ],
     tip: 'In L7, vi is +9fr on str6 (or think of it as the top of the teal L). In LL, vi is only 3 frets left of root — much easier to navigate. Use LL for this progression.',
@@ -456,10 +448,10 @@ const PRACTICE_PROGS = [
     desc: 'i–bVII–bVI–V. Phrygian descent. Ancient and cinematic.',
     degrees: [{rn:'i',d:0},{rn:'bVII',d:6},{rn:'bVI',d:5},{rn:'V',d:4}],
     shapes: [
-      {id:'minor_l7', reason:'i on str5, bVII/bVI are teal (major) dots on str6, V below root'},
-      {id:'minor_ll', reason:'bVII and bVI are the teal L in minor LL — right side of shape'},
+      {id:'minor_l7', reason:'i on str5, bVII/bVI are the red (major) dots on str5, V directly below the root'},
+      {id:'minor_ll', reason:'bVII and bVI are part of the red L in minor LL — right side of shape'},
     ],
-    tip: 'In Minor L7, bVII is on str5 at −2fr, bVI at −4fr — they are the teal group. The descending bass line i→bVII→bVI→V walks left along the shape. Feel the gravity pulling left.',
+    tip: 'In Minor L7, bVII is on str5 at −2fr, bVI at −4fr — they are in the red (major) group. The descending bass line i→bVII→bVI→V walks left along the shape. Feel the gravity pulling left.',
   },
   {
     id: 'i_bvii_bvi_v', title: 'i–bVII–bVI–V', feel: 'Rock/Classical', feelGroup: 'Rock & Pop',
@@ -468,7 +460,7 @@ const PRACTICE_PROGS = [
     degrees: [{rn:'i',d:0},{rn:'bVII',d:6},{rn:'bVI',d:5},{rn:'V',d:4}],
     shapes: [
       {id:'minor_l7', reason:'Same shape as Andalusian — natural minor descent'},
-      {id:'minor_ll', reason:'bVII and bVI form the teal L in minor LL'},
+      {id:'minor_ll', reason:'bVII and bVI are part of the red L in minor LL'},
     ],
     tip: 'Identical to Andalusian in terms of root positions. The Minor L7 is your go-to shape for any natural minor descending progression.',
   },
@@ -481,7 +473,7 @@ const PRACTICE_PROGS = [
     shapes: [
       {id:'major_l7', reason:'I on str6, III7 on str6 +4fr, IV on str5 same fret as root'},
     ],
-    tip: 'III7 and IV share the same fret column (III7 on str6, IV on str5). The iv chord is same fret as IV — just a quality change. Practice feeling that chromatic colour shift without moving your hand.',
+    tip: 'III7 is four frets up on str6 (the iii dot); IV is back at the root\'s fret on str5. The iv chord is same fret as IV — just a quality change. Practice feeling that chromatic colour shift without moving your hand.',
   },
   {
     id: 'gospel', title: 'Gospel · I–IV–V', feel: 'Gospel', feelGroup: 'Soul & R&B',
@@ -501,20 +493,20 @@ const PRACTICE_PROGS = [
     desc: 'Minor i7 to major IV7. The Dorian modal colour.',
     degrees: [{rn:'i',d:0},{rn:'IV',d:3}],
     shapes: [
-      {id:'minor_l7', reason:'i on str5, IV is the red dot on str6 same fret — direct vertical move'},
+      {id:'minor_l7', reason:'i on str5, IV on str6 two frets back — the 4m dot, played as a major chord'},
       {id:'minor_ll', reason:'i and IV share the same fret column in Minor LL'},
     ],
-    tip: 'The Dorian sound comes from the major IV chord against a minor tonic. In Minor L7, IV (red) sits directly below i on str6. The move is purely vertical — same fret, different string.',
+    tip: 'The Dorian sound comes from the major IV chord against a minor tonic. In Minor L7, IV is the 4m dot on str6, two frets back from the root — play it major. In Minor LL the move is purely vertical: same fret, next string.',
   },
   {
     id: 'so_what', title: 'So What · i–bii', feel: 'Modal Jazz', feelGroup: 'Jazz',
     isMinor: true,
     desc: 'Modal vamp. i7 then a half-step up to bii. Miles Davis.',
-    degrees: [{rn:'i',d:0},{rn:'bii',d:6}],
+    degrees: [{rn:'i',d:0},{rn:'bii',d:0}],
     shapes: [
-      {id:'minor_ll', reason:'Root then +3fr on str5 — very compact, just a short slide'},
+      {id:'minor_ll', reason:'bii is the root slid up one fret — the smallest move there is'},
     ],
-    tip: 'bii is only 3 frets to the right of the root in Minor LL. The whole progression is a slight rightward shift. Practice making this sound intentional, not like a mistake.',
+    tip: 'bii is the same minor chord one fret higher: the root moves up a half step (the dashed dot). The whole progression is a one-fret shift. Practice making this sound intentional, not like a mistake.',
   },
   {
     id: 'bossa_nova', title: 'Bossa Nova · I–vi–ii–V', feel: 'Bossa Nova', feelGroup: 'Jazz',
@@ -536,7 +528,7 @@ const PRACTICE_PROGS = [
       {id:'major_l7', reason:'Energetic I-vi-ii-V forward momentum in L7 shape'},
       {id:'major_ll', reason:'Shows the symmetry of the repeating cycle'},
     ],
-    tip: 'Same roots as Bossa Nova — the difference is rhythmic. Practice this with a driving strumming pattern. In L7 the cycle goes: root str6 → vi str6 → jump to str5 for ii → V.',
+    tip: 'Same roots as Bossa Nova — the difference is rhythmic. Practice this with a driving strumming pattern. In LL the cycle goes: root str6 → vi str6 → jump to str5 for ii → V.',
   },
 ];
 
@@ -574,6 +566,16 @@ function getRootFret(noteIdx, strIdx) {
   return fret;
 }
 
+// The root fret for a whole shape. Shapes reach behind their root (Minor L7
+// goes five frets back), so in the low keys some dots landed below the nut and
+// were simply not drawn — B♭ minor's L7 kept two of its seven, and the quiz
+// could ask about a dot that was not there. Those keys move up an octave.
+// `reach` is any further offset the caller needs on screen (a borrowed root).
+function shapeRootFret(keyIdx, shape, reach = 0) {
+  const rf = getRootFret(keyIdx, shape.rootStrIdx);
+  return rf + Math.min(reach, ...shape.dots.map(d => d.fo)) < 0 ? rf + 12 : rf;
+}
+
 // Get the actual note name for a degree in a given key. Minor shapes must use
 // natural-minor spacing (b3/b6/b7) — using the major table put those roots a
 // half-step too high (e.g. A-minor bVII showed "Ab" where the dot is really G).
@@ -589,6 +591,28 @@ function chordName(keyIdx, degIdx, isMinor) {
   if (q === 'min') return note + 'm';
   if (q === 'dim') return note + '°';
   return note;
+}
+
+// A progression chord is named from its numeral, not from the degree it is
+// filed under: VI7 is A7 in C (not Am7), a minor key's V is major, bVII in a
+// major key is B♭. Case gives the quality, a trailing 7 stays a 7.
+const RN_BASE = { I: 0, II: 2, III: 4, IV: 5, V: 7, VI: 9, VII: 11 };
+function rnOffset(rn) {
+  const m = rn.match(/^([b#]?)([ivIV]+)/);
+  return (RN_BASE[m[2].toUpperCase()] + (m[1] === 'b' ? -1 : m[1] === '#' ? 1 : 0) + 12) % 12;
+}
+function progChordName(keyIdx, rn) {
+  const [, , num, dim, rest] = rn.match(/^([b#]?)([ivIV]+)(°?)(.*)$/);
+  const minor = num === num.toLowerCase();
+  return NOTE_NAMES[(keyIdx + rnOffset(rn)) % 12] + (dim ? '°' : minor ? 'm' : '') + rest;
+}
+// Frets between a numeral's root and the dot of the degree it is filed under.
+// 0 for nearly everything; bVII in a major key is a fret below the 7° dot, and
+// So What's bii a fret above the root — chords whose root no shape contains.
+function rootShift(rn, d, isMinor) {
+  const st = isMinor ? MIN_ST : DIATONIC_ST;
+  const s = ((rnOffset(rn) - st[d]) % 12 + 12) % 12;
+  return s > 6 ? s - 12 : s;
 }
 
 // ─── PULSE ANIMATION ──────────────────────────────────────────────────────────
@@ -622,30 +646,38 @@ if (typeof document !== 'undefined' && !document.getElementById('ct-pulse-style'
 // ─── PRACTICE FRETBOARD ────────────────────────────────────────────────────────
 function PracticeFretboard({ shape, rootFret, progDegSet, progDegrees }) {
   const isMinor = shape.isMinor;
-  const size = 1;
-  const allFrets = shape.dots.map(d => rootFret + d.fo).filter(f => f >= 0);
-  const minF = Math.max(0, Math.min(...allFrets) - 1);
-  const maxF = Math.max(...allFrets) + 1;
-  const fretCount = Math.max(7, maxF - minF + 1);
-  const startFret = minF;
+  // Chords whose root no shape dot holds (bVII in a major key, So What's bii):
+  // drawn as their own dashed dot, `shift` frets along the string from the dot
+  // they are filed under. First occurrence only, like the sequence badges.
+  const borrowed = progDegrees.map((c, i) => {
+    const shift = rootShift(c.rn, c.d, isMinor);
+    if (!shift || progDegrees.findIndex(x => x.rn === c.rn) !== i) return null;
+    const dot = shape.dots.find(x => x.d === c.d);
+    return { ...c, seq: i + 1, si: dot.si, fret: rootFret + dot.fo + shift };
+  }).filter(Boolean);
+  const allFrets = [...shape.dots.map(d => rootFret + d.fo), ...borrowed.map(b => b.fret)].filter(f => f >= 0);
+  // `startFret` is the wire at the left edge (the nut when 0); one empty fret
+  // of room either side of the shape. See Fretboard for why fx is `- 1`.
+  const startFret = Math.max(0, Math.min(...allFrets) - 2);
+  const fretCount = Math.max(7, Math.max(...allFrets) + 1 - startFret);
   const ML = 22, MR = 8, MT = 22, MB = 10;
   const NUM_STRINGS = 6;
   const SS = 26, FS = 34, DR_NORMAL = 10, DR_PROG = 13;
   const W = ML + MR + fretCount * FS;
   const H = MT + MB + (NUM_STRINGS - 1) * SS;
-  const fx = fret => ML + (fret - startFret) * FS + FS / 2;
+  const fx = fret => ML + (fret - startFret - 1) * FS + FS / 2;
   const sy = si => MT + (5 - si) * SS;
   const INLAYS = [3,5,7,9,12,15,17,19,21];
   // Sequence map: first occurrence of each degree in the progression
   const seqMap = {};
-  progDegrees.forEach((c, i) => { if (!(c.d in seqMap)) seqMap[c.d] = i + 1; });
+  progDegrees.forEach((c, i) => { if (!(c.d in seqMap) && !rootShift(c.rn, c.d, isMinor)) seqMap[c.d] = i + 1; });
 
   return (
     <div style={{ overflowX: 'visible', overflowY: 'visible', display: 'flex', justifyContent: 'center' }}>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', overflow: 'visible', height: 280, width: 'auto', maxWidth: '100%' }}>
         {/* Inlays */}
-        {INLAYS.filter(f => f > startFret && f < startFret + fretCount).map(f => (
-          <circle key={f} cx={fx(f) - FS/2} cy={H/2} r={3} fill={BG3} opacity={0.8} />
+        {INLAYS.filter(f => f > startFret && f <= startFret + fretCount).map(f => (
+          <circle key={f} cx={fx(f)} cy={H/2} r={3} fill={BG3} opacity={0.8} />
         ))}
         {/* Fret numbers above strings */}
         {Array.from({ length: fretCount }, (_, i) => {
@@ -740,6 +772,29 @@ function PracticeFretboard({ shape, rootFret, progDegSet, progDegrees }) {
             </g>
           );
         })}
+        {/* Borrowed roots — outside the shape, so dashed */}
+        {borrowed.map(b => {
+          if (b.fret < 0) return null;
+          const cx = fx(b.fret), cy = sy(b.si);
+          const [, acc, num, dim] = b.rn.match(/^([b#]?)([ivIV]+)(°?)/);
+          const minor = num === num.toLowerCase();
+          const color = dim ? COLOR_DIM : minor ? COLOR_MIN : COLOR_MAJ;
+          const label = acc + (['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'].indexOf(num.toUpperCase()) + 1) + (dim ? '°' : minor ? 'm' : '');
+          const dr = DR_PROG;
+          return (
+            <g key={`b${b.seq}`}>
+              <circle cx={cx} cy={cy} r={dr + 2.5} fill="none" stroke="#fff" strokeWidth={1.5} strokeDasharray="3 2" opacity={0.6} />
+              <circle cx={cx} cy={cy} r={dr} fill={color} />
+              <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central"
+                fontSize={label.length > 2 ? 7 : 8} fill="#111" fontWeight="800"
+                fontFamily="'Segoe UI',system-ui,sans-serif">{label}</text>
+              <circle cx={cx + dr * 0.75} cy={cy - dr * 0.75} r={6} fill={BG} stroke={color} strokeWidth={1} />
+              <text x={cx + dr * 0.75} y={cy - dr * 0.75} textAnchor="middle" dominantBaseline="central"
+                fontSize={6} fill={color} fontWeight="900"
+                fontFamily="'Segoe UI',system-ui,sans-serif">{b.seq}</text>
+            </g>
+          );
+        })}
       </svg>
     </div>
   );
@@ -750,10 +805,10 @@ function Fretboard({ shape, rootFret, keyIdx, highlightDeg, onDotClick, quizMode
 
   // Fret window: show enough context around the shape
   const allFrets = shape.dots.map(d => rootFret + d.fo).filter(f => f >= 0);
-  const minF = Math.max(0, Math.min(...allFrets) - 1);
-  const maxF = Math.max(...allFrets) + 1;
-  const fretCount = Math.max(7, maxF - minF + 1);
-  const startFret = minF;
+  // `startFret` is the wire at the left edge (the nut when 0); one empty fret
+  // of room either side of the shape.
+  const startFret = Math.max(0, Math.min(...allFrets) - 2);
+  const fretCount = Math.max(7, Math.max(...allFrets) + 1 - startFret);
 
   // Layout
   const ML = 22, MR = 8, MT = 22, MB = 18;
@@ -764,13 +819,15 @@ function Fretboard({ shape, rootFret, keyIdx, highlightDeg, onDotClick, quizMode
   const W = ML + MR + fretCount * FS;
   const H = MT + MB + (NUM_STRINGS - 1) * SS;
 
-  // Fret x coord (fret 0 = nut)
-  const fx = (fret) => ML + (fret - startFret) * FS + FS / 2;
+  // Centre of the space a note at `fret` is played in: between wires fret-1
+  // and fret, which is where the fret numbers are printed. It used to be one
+  // space further right, so every dot read a fret high (C on the low E, fret
+  // 8, sat under "9"). An open string (fret 0) lands just left of the nut.
+  const fx = (fret) => ML + (fret - startFret - 1) * FS + FS / 2;
   // String y coord: idx 0=low-E at BOTTOM, idx 5=high-e at TOP (standard orientation)
   const sy = (strIdx) => MT + (5 - strIdx) * SS;
 
   const INLAYS = [3,5,7,9,12,15,17,19,21];
-  const nutX = ML;
 
   return (
     <div style={{ overflowX: 'visible', overflowY: 'visible', display: 'flex', justifyContent: 'center' }}>
@@ -778,15 +835,15 @@ function Fretboard({ shape, rootFret, keyIdx, highlightDeg, onDotClick, quizMode
         style={{ display: 'block', overflow: 'visible', height: 280, width: 'auto', maxWidth: '100%' }}>
 
         {/* Inlay dots */}
-        {INLAYS.filter(f => f > startFret && f < startFret + fretCount).map(f => (
-          <circle key={f} cx={fx(f) - FS/2} cy={H/2} r={3 * size}
+        {INLAYS.filter(f => f > startFret && f <= startFret + fretCount).map(f => (
+          <circle key={f} cx={fx(f)} cy={H/2} r={3 * size}
             fill={BG3} opacity={0.8} />
         ))}
         {/* Double dot at 12 */}
-        {12 > startFret && 12 < startFret + fretCount && (
+        {12 > startFret && 12 <= startFret + fretCount && (
           <>
-            <circle cx={fx(12) - FS/2} cy={sy(1)} r={3 * size} fill={BG3} opacity={0.8} />
-            <circle cx={fx(12) - FS/2} cy={sy(4)} r={3 * size} fill={BG3} opacity={0.8} />
+            <circle cx={fx(12)} cy={sy(1)} r={3 * size} fill={BG3} opacity={0.8} />
+            <circle cx={fx(12)} cy={sy(4)} r={3 * size} fill={BG3} opacity={0.8} />
           </>
         )}
 
@@ -952,39 +1009,6 @@ function Fretboard({ shape, rootFret, keyIdx, highlightDeg, onDotClick, quizMode
     </div>
   );
 }
-
-// ─── CHORD PILL ────────────────────────────────────────────────────────────────
-function ChordPill({ d, shape, keyIdx, rootFret, onClick, highlighted }) {
-  const isMinor = shape.isMinor;
-  const label = degLabel(d, isMinor);
-  const quality = degQuality(d, isMinor);
-  const noteName = chordName(keyIdx, d, isMinor);
-  const dot = shape.dots.find(x => x.d === d);
-  const fret = dot ? rootFret + dot.fo : '?';
-  const strLabel = dot ? (dot.si === 0 ? 'E' : 'A') : '';
-  const isRoot = d === 0;
-  const color = getDotColor(d, shape);
-  const ci = COLORS_CAT[quality] || TEXT2;
-
-  return (
-    <div onClick={onClick} style={{
-      background: highlighted ? color + '18' : BG2,
-      border: `1px solid ${highlighted ? color : BORDER}`,
-      borderRadius: 10, padding: '8px 10px', cursor: 'pointer',
-      transition: 'all .15s', display: 'flex', flexDirection: 'column', gap: 2,
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 13, fontWeight: 900, color,
-          fontFamily: "'Segoe UI',system-ui,sans-serif" }}>{label}</span>
-        <span style={{ fontSize: 9, color: TEXT2 }}>str{dot?.si === 0 ? '6' : '5'} fr{fret}</span>
-      </div>
-      <div style={{ fontSize: 12, fontWeight: 700, color: TEXT0 }}>{noteName}</div>
-      <div style={{ fontSize: 9, color: TEXT2 }}>{quality}</div>
-    </div>
-  );
-}
-
-const COLORS_CAT = { maj: COLOR_MAJ, min: COLOR_MIN, dim: COLOR_DIM };
 
 // ─── DEBUG TRIGGERS ────────────────────────────────────────────────────────────
 let _debugShowInstall = null;
@@ -1155,7 +1179,6 @@ export default function App() {
       const ctx = c.getContext('2d');
       ctx.fillStyle = '#0f0e17'; ctx.fillRect(0, 0, size, size);
       // Draw fretboard-style graphic: two horizontal strings with dots
-      const mid = size * 0.5;
       const str1y = size * 0.38, str2y = size * 0.62;
       const pad = size * 0.12;
       // Strings
@@ -1207,18 +1230,7 @@ export default function App() {
     setMeta('apple-mobile-web-app-status-bar-style', 'black-translucent');
     setMeta('apple-mobile-web-app-title', 'Fretworks');
 
-    const manifest = {
-      name: 'L7 / LL Root Trainer', short_name: 'RootTrainer',
-      description: 'Diatonic chord root note patterns for guitar.',
-      start_url: '.', display: 'standalone', orientation: 'portrait',
-      background_color: '#0f0e17', theme_color: '#0f0e17',
-      icons: [
-        { src: iconUrl180, sizes: '180x180', type: 'image/png' },
-        { src: iconUrl,    sizes: '512x512', type: 'image/png' },
-      ],
-    };
-    // Single PWA: reference the unified shell manifest (one manifest per origin)
-    // instead of the per-app manifest built above.
+    // Single PWA: reference the unified shell manifest (one manifest per origin).
     let mlink = document.querySelector('link[rel="manifest"]');
     if (!mlink) { mlink = document.createElement('link'); mlink.rel = 'manifest'; document.head.appendChild(mlink); }
     mlink.href = '/manifest.webmanifest';
@@ -1240,7 +1252,7 @@ export default function App() {
   const [qAnswer, setQAnswer] = useState(null);
   const [qTimeLeft, setQTimeLeft] = useState(8);
   const [qScore, setQScore] = useState(0);
-  const [qStreak, setQStreak] = useState(0);
+  const [, setQStreak] = useState(0);   // only feeds the best-streak readout
   const [qBest, setQBest] = useState(0);
   const [qIdx, setQIdx] = useState(0);
   const [qHistory, setQHistory] = useState([]);
@@ -1262,7 +1274,7 @@ export default function App() {
   }, [qShapeId, qKeyMode, qFixedKey, qTimeLimit, qNumQ, qHardMode]);
 
   const shape = SHAPES_BY_ID[shapeId];
-  const rootFret = getRootFret(keyIdx, shape.rootStrIdx);
+  const rootFret = shapeRootFret(keyIdx, shape);
   const isMinor = shape.isMinor;
 
   // ── Quiz logic ───────────────────────────────────────────────────────────────
@@ -1273,7 +1285,7 @@ export default function App() {
     const s = SHAPES_BY_ID[resolvedSid];
     const d = (degIdx == null) ? ri(7) : degIdx;
     const dot = s.dots.find(dd => dd.d === d);
-    const rf = getRootFret(ki, s.rootStrIdx);
+    const rf = shapeRootFret(ki, s);
     const targetFret = rf + dot.fo;
     const correctNum = d + 1;                          // 1=root … 7=seventh
     const correctType = degQuality(d, s.isMinor);      // 'maj'|'min'|'dim'
@@ -1341,7 +1353,7 @@ export default function App() {
             setQAnswer(-1); // timeout
             setQStreak(0);
             setQHistory(h => [...h, { correct: false }]);
-            if (qQuestion) setSrs(prev => ({ ...prev, [qQuestion.cardId]: updateSRS(prev[qQuestion.cardId], false) }));
+            if (qQuestion) setSrs(prev => ({ ...prev, [qQuestion.cardId]: { ...updateSRS(prev[qQuestion.cardId], false), seen: (prev[qQuestion.cardId]?.seen || 0) + 1 } }));
           }
           // No auto-advance — user clicks Next
           return 0;
@@ -1363,7 +1375,7 @@ export default function App() {
     const typeCorrect = qPickedType === correctType;
     const correct = numCorrect && typeCorrect;
     setQAnswer({ pickedNum: qPickedNum, pickedType: qPickedType, correct, numCorrect, typeCorrect });
-    setSrs(prev => ({ ...prev, [qQuestion.cardId]: updateSRS(prev[qQuestion.cardId], correct) }));
+    setSrs(prev => ({ ...prev, [qQuestion.cardId]: { ...updateSRS(prev[qQuestion.cardId], correct), seen: (prev[qQuestion.cardId]?.seen || 0) + 1 } }));
     if (correct) {
       setQScore(s => s + 1);
       setQStreak(s => { const ns = s + 1; setQBest(b => Math.max(b, ns)); return ns; });
@@ -1490,7 +1502,6 @@ export default function App() {
           // Root label and which color it belongs to
           const rootLabel = degLabel(0, isMinor);  // '1' or '1m'
           const rootInRed = shape.redGroup.has(0);
-          const rootColor = rootInRed ? COLOR_MAJ : COLOR_MIN;
 
           const redFull  = rootInRed
             ? `${redQualLabel} (${[rootLabel + ' ◎', ...redLabels].join(', ')})`
@@ -2054,10 +2065,14 @@ export default function App() {
   const renderPractice = () => {
     const prog = practiceProgIdx !== null ? PRACTICE_PROGS[practiceProgIdx] : null;
     const activeShape = prog && practiceShapeId ? SHAPES_BY_ID[practiceShapeId] : null;
-    const rf = activeShape ? getRootFret(practiceKeyIdx, activeShape.rootStrIdx) : 0;
+    // A borrowed root is drawn beside the dot it is filed under, so the neck
+    // has to have room for it as well as for the shape.
+    const reach = activeShape ? Math.min(0, ...prog.degrees.map(c => activeShape.dots.find(x => x.d === c.d).fo + rootShift(c.rn, c.d, prog.isMinor))) : 0;
+    const rf = activeShape ? shapeRootFret(practiceKeyIdx, activeShape, reach) : 0;
 
-    // Which degree indices are in this progression
-    const progDegSet = prog ? new Set(prog.degrees.map(c => c.d)) : new Set();
+    // Which degree dots this progression lights. A borrowed chord lights its
+    // own dot instead (PracticeFretboard), not the one it is filed under.
+    const progDegSet = prog ? new Set(prog.degrees.filter(c => !rootShift(c.rn, c.d, prog.isMinor)).map(c => c.d)) : new Set();
 
     return (
       <div style={{ paddingBottom: 8 }}>
@@ -2161,14 +2176,10 @@ export default function App() {
               {/* Chord names in selected key */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
                 {prog.degrees.map((c, i) => {
-                  const name = chordName(practiceKeyIdx, c.d, prog.isMinor);
-                  // Apply alteration from rn label if present
-                  const rn = c.rn;
-                  const isAltered = rn.includes('7') || rn.includes('b9') || rn.includes('#');
-                  const suffix = isAltered && !rn.includes('ii') && !rn.includes('IV') ? '7' : '';
+                  const name = progChordName(practiceKeyIdx, c.rn);
                   return (
                     <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                      <span style={{ fontSize: 11, color: TEXT0, fontWeight: 700 }}>{name}{suffix}</span>
+                      <span style={{ fontSize: 11, color: TEXT0, fontWeight: 700 }}>{name}</span>
                       {i < prog.degrees.length - 1 && <span style={{ color: TEXT2, fontSize: 10 }}>→</span>}
                     </span>
                   );
@@ -2341,8 +2352,8 @@ export default function App() {
           color: PURPLE,
           lines: [
             'Root sits on the A-string (str 5). Root is on the upper of the two active strings.',
-            'Red group (minor chords): 1m, 4m, 5m — the three minor chords. 5m sits on str6 at the same fret as 1m, and 4m is 2 frets left of 5m.',
-            'Teal group (major chords): b3, b6, b7 — the three major chords borrowed from the relative major. b3 is on str6, b6 and b7 are on str5.',
+            'Teal group (minor chords): 1m, 4m, 5m — the three minor chords. 5m sits on str6 at the same fret as 1m, and 4m is 2 frets left of 5m.',
+            'Red group (major chords): b3, b6, b7 — the three major chords borrowed from the relative major. b3 is on str6, b6 and b7 are on str5.',
             'Dim: 2° sits on str6, 5 frets below the root — rarely used, marks the edge of the shape.',
           ],
         },
@@ -2351,8 +2362,8 @@ export default function App() {
           color: PINK,
           lines: [
             'Root on low-E (str 6). Same LL geometry as Major LL, with minor-key chord qualities.',
-            'Red L: 1m (str6) jumps UP to 4m (str5, same fret), then right to 5m (+2fr). Vertical then horizontal = L.',
-            'Teal L: b3 (str6, +3fr) jumps UP to b6 (str5, +3fr), then right to b7 (+5fr). Another L.',
+            'Teal L: 1m (str6) jumps UP to 4m (str5, same fret), then right to 5m (+2fr). Vertical then horizontal = L.',
+            'Red L: b3 (str6, +3fr) jumps UP to b6 (str5, +3fr), then right to b7 (+5fr). Another L.',
             'b7 (the bVII major chord) is the rightmost dot — extremely common in rock and pop minor keys.',
           ],
         },
