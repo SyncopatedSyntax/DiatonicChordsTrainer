@@ -1173,45 +1173,6 @@ export default function App() {
       vp.content = 'width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover';
     })();
 
-    // Generate canvas icon
-    function makeIcon(size) {
-      const c = document.createElement('canvas'); c.width = c.height = size;
-      const ctx = c.getContext('2d');
-      ctx.fillStyle = '#0f0e17'; ctx.fillRect(0, 0, size, size);
-      // Draw fretboard-style graphic: two horizontal strings with dots
-      const str1y = size * 0.38, str2y = size * 0.62;
-      const pad = size * 0.12;
-      // Strings
-      ctx.strokeStyle = '#3a3858'; ctx.lineWidth = size * 0.025; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(pad, str1y); ctx.lineTo(size - pad, str1y); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(pad, str2y); ctx.lineTo(size - pad, str2y); ctx.stroke();
-      // Dots: red on str1, teal on str2
-      const dotR = size * 0.07;
-      const positions = [
-        { x: size * 0.35, y: str1y, color: '#ff6b6b' }, // 1 root
-        { x: size * 0.55, y: str1y, color: '#ff6b6b' }, // 2
-        { x: size * 0.75, y: str1y, color: '#4ecdc4' }, // 3
-        { x: size * 0.35, y: str2y, color: '#ff6b6b' }, // 4
-        { x: size * 0.55, y: str2y, color: '#4ecdc4' }, // 5
-        { x: size * 0.75, y: str2y, color: '#4ecdc4' }, // 6
-      ];
-      positions.forEach(({ x, y, color }) => {
-        ctx.beginPath(); ctx.arc(x, y, dotR, 0, Math.PI * 2);
-        ctx.fillStyle = color; ctx.fill();
-      });
-      return c.toDataURL('image/png');
-    }
-
-    const iconUrl = makeIcon(512);
-    const iconUrl180 = makeIcon(180);
-
-    const setLink = (rel, sizes, href) => {
-      let l = document.querySelector(`link[rel="${rel}"]${sizes ? `[sizes="${sizes}"]` : ''}`);
-      if (!l) { l = document.createElement('link'); l.rel = rel; if (sizes) l.sizes = sizes; document.head.appendChild(l); }
-      l.href = href;
-    };
-    setLink('apple-touch-icon', '180x180', iconUrl180);
-    setLink('icon', '512x512', iconUrl);
 
     // iOS standalone scroll lock
     window.scrollTo(0, 0);
@@ -1228,12 +1189,7 @@ export default function App() {
     setMeta('viewport', 'width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover');
     setMeta('apple-mobile-web-app-capable', 'yes');
     setMeta('apple-mobile-web-app-status-bar-style', 'black-translucent');
-    setMeta('apple-mobile-web-app-title', 'Fretworks');
 
-    // Single PWA: reference the unified shell manifest (one manifest per origin).
-    let mlink = document.querySelector('link[rel="manifest"]');
-    if (!mlink) { mlink = document.createElement('link'); mlink.rel = 'manifest'; document.head.appendChild(mlink); }
-    mlink.href = '/manifest.webmanifest';
 
     return () => {
       document.head.removeChild(style);
